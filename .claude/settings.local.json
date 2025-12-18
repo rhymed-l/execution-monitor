@@ -5,7 +5,12 @@
       "Bash(ls:*)",
       "Bash(powershell.exe:*)",
       "Bash(dir:*)",
-      "Bash(mvn clean compile:*)"
+      "Bash(mvn clean compile:*)",
+      "Bash(git mv:*)",
+      "Bash(git add:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File replace_names.ps1)",
+      "Bash(./mvnw.cmd clean compile:*)"
     ]
   }
 }

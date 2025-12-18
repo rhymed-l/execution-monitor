@@ -1,5 +1,5 @@
--- Task Execution Log Table
-CREATE TABLE IF NOT EXISTS task_execution_log
+-- Execution Log Table
+CREATE TABLE IF NOT EXISTS execution_log
 (
     -- Primary Key
     id
@@ -11,15 +11,15 @@ CREATE TABLE IF NOT EXISTS task_execution_log
     '主键',
 
     -- 标识
-    task_id
+    execution_id
     VARCHAR
 (
     64
-) NOT NULL UNIQUE COMMENT '任务唯一标识(UUID)',
-    task_name VARCHAR
+) NOT NULL UNIQUE COMMENT '执行唯一标识(UUID)',
+    execution_name VARCHAR
 (
     200
-) NOT NULL COMMENT '任务名称',
+) NOT NULL COMMENT '执行名称',
     biz_key VARCHAR
 (
     200
@@ -101,18 +101,18 @@ CREATE TABLE IF NOT EXISTS task_execution_log
     status,
     last_heartbeat_time
 ) COMMENT '健康检查查询',
-    INDEX idx_task_name
+    INDEX idx_execution_name
 (
-    task_name
-) COMMENT '按任务名统计',
+    execution_name
+) COMMENT '按执行名统计',
     INDEX idx_retry_time
 (
     status,
     next_retry_time
-) COMMENT '重试任务扫描',
+) COMMENT '重试扫描',
     INDEX idx_host_status
 (
     host_ip,
     status
-) COMMENT '按主机恢复任务'
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务执行日志表';
+) COMMENT '按主机恢复'
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='执行日志表';

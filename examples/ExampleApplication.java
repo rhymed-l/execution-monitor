@@ -1,8 +1,8 @@
-package examples;
+﻿package examples;
 
-import cn.rhymed.task.monitor.application.dto.TaskLogDTO;
-import cn.rhymed.task.monitor.interfaces.annotation.TaskMonitor;
-import cn.rhymed.task.monitor.interfaces.annotation.TaskRecoveryHandler;
+import cn.rhymed.execution.monitor.application.dto.ExecutionLogDTO;
+import cn.rhymed.execution.monitor.interfaces.annotation.ExecutionMonitor;
+import cn.rhymed.execution.monitor.interfaces.annotation.ExecutionRecoveryHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -15,7 +15,7 @@ import java.io.File;
 import java.util.Random;
 
 /**
- * Task Monitor 使用示例
+ * Execution Monitor 使用示例
  *
  * @author rhymed.liu[rhymed.liu@anker-in.com]
  * @since 2025-12-10 11:44
@@ -31,52 +31,52 @@ public class ExampleApplication {
      * 示例Controller
      */
     @RestController
-    public static class TaskController {
+    public static class ExecutionController {
 
         private final ExampleService exampleService;
 
-        public TaskController(ExampleService exampleService) {
+        public ExecutionController(ExampleService exampleService) {
             this.exampleService = exampleService;
         }
 
         @GetMapping("/example/basic")
-        public String basicTask() {
-            exampleService.basicTask("Hello World");
-            return "Basic task executed";
+        public String basicExecution() {
+            exampleService.basicExecution("Hello World");
+            return "Basic execution executed";
         }
 
         @GetMapping("/example/with-bizkey")
-        public String taskWithBizKey() {
+        public String executionWithBizKey() {
             exampleService.processOrder("ORDER-12345", "Product A");
-            return "Task with bizKey executed";
+            return "Execution with bizKey executed";
         }
 
         @GetMapping("/example/with-serialization")
-        public String taskWithSerialization() {
+        public String executionWithSerialization() {
             exampleService.importData(new String[]{"data1", "data2", "data3"});
-            return "Task with serialization executed";
+            return "Execution with serialization executed";
         }
 
         @GetMapping("/example/with-heartbeat")
-        public String taskWithHeartbeat() {
-            exampleService.longRunningTask("Task-001");
-            return "Long running task started";
+        public String executionWithHeartbeat() {
+            exampleService.longRunningExecution("Execution-001");
+            return "Long running execution started";
         }
 
         @GetMapping("/example/with-retry")
-        public String taskWithRetry() {
+        public String executionWithRetry() {
             try {
-                exampleService.unstableTask("API-Call");
+                exampleService.unstableExecution("API-Call");
             } catch (Exception e) {
-                return "Task failed: " + e.getMessage();
+                return "Execution failed: " + e.getMessage();
             }
-            return "Unstable task executed";
+            return "Unstable execution executed";
         }
 
         @GetMapping("/example/with-custom-recovery")
-        public String taskWithCustomRecovery() {
+        public String executionWithCustomRecovery() {
             exampleService.processFile("/tmp/example.txt");
-            return "File processing task executed";
+            return "File processing execution executed";
         }
     }
 
@@ -90,8 +90,8 @@ public class ExampleApplication {
         /**
          * 示例1: 基础任务监控
          */
-        @TaskMonitor(taskName = "basicTask")
-        public void basicTask(String message) {
+        @ExecutionMonitor(executionName = "basicExecution")
+        public void basicExecution(String message) {
             log.info("执行基础任务: {}", message);
             // 任务执行状态会被自动记录
         }
@@ -99,8 +99,8 @@ public class ExampleApplication {
         /**
          * 示例2: 使用业务键
          */
-        @TaskMonitor(
-                taskName = "processOrder",
+        @ExecutionMonitor(
+                executionName = "processOrder",
                 bizKey = "#orderId"  // SpEL表达式
         )
         public void processOrder(String orderId, String product) {
@@ -111,8 +111,8 @@ public class ExampleApplication {
         /**
          * 示例3: 启用参数序列化
          */
-        @TaskMonitor(
-                taskName = "importData",
+        @ExecutionMonitor(
+                executionName = "importData",
                 serializeParams = true
         )
         public void importData(String[] data) {
@@ -126,14 +126,14 @@ public class ExampleApplication {
         /**
          * 示例4: 长时间运行任务，启用心跳
          */
-        @TaskMonitor(
-                taskName = "longRunningTask",
-                bizKey = "#taskId",
+        @ExecutionMonitor(
+                executionName = "longRunningExecution",
+                bizKey = "#executionId",
                 enableHeartbeat = true,
                 heartbeatIntervalSeconds = 30
         )
-        public void longRunningTask(String taskId) {
-            log.info("开始长时间运行任务: {}", taskId);
+        public void longRunningExecution(String executionId) {
+            log.info("开始长时间运行任务: {}", executionId);
             try {
                 // 模拟长时间运行
                 for (int i = 0; i < 10; i++) {
@@ -144,32 +144,32 @@ public class ExampleApplication {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-            log.info("长时间运行任务完成: {}", taskId);
+            log.info("长时间运行任务完成: {}", executionId);
         }
 
         /**
          * 示例5: 不稳定任务，可能失败需要重试
          */
-        @TaskMonitor(
-                taskName = "unstableTask",
-                bizKey = "#taskId",
+        @ExecutionMonitor(
+                executionName = "unstableExecution",
+                bizKey = "#executionId",
                 maxRetry = 3
         )
-        public void unstableTask(String taskId) {
-            log.info("执行不稳定任务: {}", taskId);
+        public void unstableExecution(String executionId) {
+            log.info("执行不稳定任务: {}", executionId);
             // 模拟随机失败
             Random random = new Random();
             if (random.nextInt(10) < 7) {  // 70%失败率
                 throw new RuntimeException("模拟任务失败");
             }
-            log.info("任务成功: {}", taskId);
+            log.info("任务成功: {}", executionId);
         }
 
         /**
          * 示例6: 文件处理任务（配合自定义恢复处理器）
          */
-        @TaskMonitor(
-                taskName = "processFile",
+        @ExecutionMonitor(
+                executionName = "processFile",
                 bizKey = "#filePath",
                 serializeParams = true
         )
@@ -194,11 +194,11 @@ public class ExampleApplication {
         /**
          * 文件处理任务的自定义恢复逻辑
          */
-        @TaskRecoveryHandler(taskName = "processFile", priority = 0)
-        public void recoverFileProcessing(TaskLogDTO taskLog) {
-            log.info("自定义恢复文件处理任务: {}", taskLog.getTaskId());
+        @ExecutionRecoveryHandler(executionName = "processFile", priority = 0)
+        public void recoverFileProcessing(ExecutionLogDTO executionLog) {
+            log.info("自定义恢复文件处理任务: {}", executionLog.getExecutionId());
 
-            String filePath = taskLog.getBizKey();
+            String filePath = executionLog.getBizKey();
             File file = new File(filePath);
 
             if (file.exists()) {
@@ -213,11 +213,11 @@ public class ExampleApplication {
         /**
          * 订单处理任务的自定义恢复逻辑
          */
-        @TaskRecoveryHandler(taskName = "processOrder", priority = 0)
-        public void recoverOrderProcessing(TaskLogDTO taskLog) {
-            log.info("自定义恢复订单处理任务: {}", taskLog.getTaskId());
+        @ExecutionRecoveryHandler(executionName = "processOrder", priority = 0)
+        public void recoverOrderProcessing(ExecutionLogDTO executionLog) {
+            log.info("自定义恢复订单处理任务: {}", executionLog.getExecutionId());
 
-            String orderId = taskLog.getBizKey();
+            String orderId = executionLog.getBizKey();
             log.info("检查订单状态: {}", orderId);
 
             // 查询订单状态

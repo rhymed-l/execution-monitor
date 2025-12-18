@@ -1,13 +1,13 @@
-# Task Monitor 示例配置文件
+# Execution Monitor 示例配置文件
 
 spring:
   application:
-    name: task-monitor-example
+    name: execution-monitor-example
 
-# 任务监控配置
-task:
+# 执行监控配置
+execution:
   monitor:
-    # 启用任务监控
+    # 启用执行监控
     enabled: true
 
     # 存储类型: memory（内存）, redis（Redis）, database（数据库）
@@ -63,7 +63,7 @@ task:
 # 日志配置
 logging:
   level:
-    cn.rhymed.task.monitor: DEBUG
+    cn.rhymed.execution.monitor: DEBUG
     examples: DEBUG
 
 ---
@@ -73,7 +73,7 @@ spring:
     activate:
       on-profile: redis
 
-task:
+execution:
   monitor:
     storage-type: redis
 
@@ -91,20 +91,20 @@ spring:
     activate:
       on-profile: database
 
-task:
+execution:
   monitor:
     storage-type: database
 
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/task_monitor?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://localhost:3306/execution_monitor?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
     username: root
     password: your-password
     driver-class-name: com.mysql.cj.jdbc.Driver
 
 # MyBatis配置
 mybatis:
-  type-aliases-package: cn.rhymed.task.monitor.infrastructure.persistence.database.po
+  type-aliases-package: cn.rhymed.execution.monitor.infrastructure.persistence.database.po
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl

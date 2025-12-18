@@ -1,5 +1,5 @@
--- 任务执行日志表
-CREATE TABLE IF NOT EXISTS task_execution_log
+-- 执行日志表
+CREATE TABLE IF NOT EXISTS execution_log
 (
     id
     BIGINT
@@ -8,15 +8,15 @@ CREATE TABLE IF NOT EXISTS task_execution_log
     AUTO_INCREMENT
     COMMENT
     '主键ID',
-    task_id
+    execution_id
     VARCHAR
 (
     64
-) NOT NULL COMMENT '任务ID',
-    task_name VARCHAR
+) NOT NULL COMMENT '执行ID',
+    execution_name VARCHAR
 (
     128
-) NOT NULL COMMENT '任务名称',
+) NOT NULL COMMENT '执行名称',
     biz_key VARCHAR
 (
     256
@@ -40,26 +40,26 @@ CREATE TABLE IF NOT EXISTS task_execution_log
     heartbeat_interval_seconds INT COMMENT '心跳间隔（秒）',
     created_at DATETIME NOT NULL COMMENT '创建时间',
     updated_at DATETIME NOT NULL COMMENT '更新时间',
-    INDEX idx_task_id
+    INDEX idx_execution_id
 (
-    task_id
+    execution_id
 ),
     INDEX idx_status
 (
     status
 ),
-    INDEX idx_task_name
+    INDEX idx_execution_name
 (
-    task_name
+    execution_name
 ),
     INDEX idx_created_at
 (
     created_at
 )
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务执行日志表';
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='执行日志表';
 
--- 任务心跳表
-CREATE TABLE IF NOT EXISTS task_heartbeat
+-- 执行心跳表
+CREATE TABLE IF NOT EXISTS execution_heartbeat
 (
     id
     BIGINT
@@ -68,21 +68,21 @@ CREATE TABLE IF NOT EXISTS task_heartbeat
     AUTO_INCREMENT
     COMMENT
     '主键ID',
-    task_id
+    execution_id
     VARCHAR
 (
     64
-) NOT NULL UNIQUE COMMENT '任务ID',
+) NOT NULL UNIQUE COMMENT '执行ID',
     interval_seconds INT NOT NULL COMMENT '心跳间隔（秒）',
     last_heartbeat DATETIME NOT NULL COMMENT '最后心跳时间',
     created_at DATETIME NOT NULL COMMENT '创建时间',
     updated_at DATETIME NOT NULL COMMENT '更新时间',
-    INDEX idx_task_id
+    INDEX idx_execution_id
 (
-    task_id
+    execution_id
 ),
     INDEX idx_last_heartbeat
 (
     last_heartbeat
 )
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务心跳表';
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='执行心跳表';
