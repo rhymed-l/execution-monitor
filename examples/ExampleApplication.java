@@ -1,0 +1,228 @@
+package examples;
+
+import cn.rhymed.task.monitor.application.dto.TaskLogDTO;
+import cn.rhymed.task.monitor.interfaces.annotation.TaskMonitor;
+import cn.rhymed.task.monitor.interfaces.annotation.TaskRecoveryHandler;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.io.File;
+import java.util.Random;
+
+/**
+ * Task Monitor 使用示例
+ *
+ * @author rhymed.liu[rhymed.liu@anker-in.com]
+ * @since 2025-12-10 11:44
+ */
+@SpringBootApplication
+public class ExampleApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(ExampleApplication.class, args);
+    }
+
+    /**
+     * 示例Controller
+     */
+    @RestController
+    public static class TaskController {
+
+        private final ExampleService exampleService;
+
+        public TaskController(ExampleService exampleService) {
+            this.exampleService = exampleService;
+        }
+
+        @GetMapping("/example/basic")
+        public String basicTask() {
+            exampleService.basicTask("Hello World");
+            return "Basic task executed";
+        }
+
+        @GetMapping("/example/with-bizkey")
+        public String taskWithBizKey() {
+            exampleService.processOrder("ORDER-12345", "Product A");
+            return "Task with bizKey executed";
+        }
+
+        @GetMapping("/example/with-serialization")
+        public String taskWithSerialization() {
+            exampleService.importData(new String[]{"data1", "data2", "data3"});
+            return "Task with serialization executed";
+        }
+
+        @GetMapping("/example/with-heartbeat")
+        public String taskWithHeartbeat() {
+            exampleService.longRunningTask("Task-001");
+            return "Long running task started";
+        }
+
+        @GetMapping("/example/with-retry")
+        public String taskWithRetry() {
+            try {
+                exampleService.unstableTask("API-Call");
+            } catch (Exception e) {
+                return "Task failed: " + e.getMessage();
+            }
+            return "Unstable task executed";
+        }
+
+        @GetMapping("/example/with-custom-recovery")
+        public String taskWithCustomRecovery() {
+            exampleService.processFile("/tmp/example.txt");
+            return "File processing task executed";
+        }
+    }
+
+    /**
+     * 示例Service
+     */
+    @Slf4j
+    @Service
+    public static class ExampleService {
+
+        /**
+         * 示例1: 基础任务监控
+         */
+        @TaskMonitor(taskName = "basicTask")
+        public void basicTask(String message) {
+            log.info("执行基础任务: {}", message);
+            // 任务执行状态会被自动记录
+        }
+
+        /**
+         * 示例2: 使用业务键
+         */
+        @TaskMonitor(
+                taskName = "processOrder",
+                bizKey = "#orderId"  // SpEL表达式
+        )
+        public void processOrder(String orderId, String product) {
+            log.info("处理订单: {}, 产品: {}", orderId, product);
+            // bizKey可以用于快速定位特定订单的任务记录
+        }
+
+        /**
+         * 示例3: 启用参数序列化
+         */
+        @TaskMonitor(
+                taskName = "importData",
+                serializeParams = true
+        )
+        public void importData(String[] data) {
+            log.info("导入数据，记录数: {}", data.length);
+            // 参数会被序列化，失败后可以恢复
+            for (String item : data) {
+                log.info("处理数据: {}", item);
+            }
+        }
+
+        /**
+         * 示例4: 长时间运行任务，启用心跳
+         */
+        @TaskMonitor(
+                taskName = "longRunningTask",
+                bizKey = "#taskId",
+                enableHeartbeat = true,
+                heartbeatIntervalSeconds = 30
+        )
+        public void longRunningTask(String taskId) {
+            log.info("开始长时间运行任务: {}", taskId);
+            try {
+                // 模拟长时间运行
+                for (int i = 0; i < 10; i++) {
+                    Thread.sleep(10000); // 10秒
+                    log.info("任务进度: {}%", (i + 1) * 10);
+                    // 系统会自动发送心跳
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            log.info("长时间运行任务完成: {}", taskId);
+        }
+
+        /**
+         * 示例5: 不稳定任务，可能失败需要重试
+         */
+        @TaskMonitor(
+                taskName = "unstableTask",
+                bizKey = "#taskId",
+                maxRetry = 3
+        )
+        public void unstableTask(String taskId) {
+            log.info("执行不稳定任务: {}", taskId);
+            // 模拟随机失败
+            Random random = new Random();
+            if (random.nextInt(10) < 7) {  // 70%失败率
+                throw new RuntimeException("模拟任务失败");
+            }
+            log.info("任务成功: {}", taskId);
+        }
+
+        /**
+         * 示例6: 文件处理任务（配合自定义恢复处理器）
+         */
+        @TaskMonitor(
+                taskName = "processFile",
+                bizKey = "#filePath",
+                serializeParams = true
+        )
+        public void processFile(String filePath) {
+            log.info("处理文件: {}", filePath);
+            File file = new File(filePath);
+            if (!file.exists()) {
+                throw new RuntimeException("文件不存在: " + filePath);
+            }
+            // 文件处理逻辑
+            log.info("文件处理完成: {}", filePath);
+        }
+    }
+
+    /**
+     * 自定义恢复处理器示例
+     */
+    @Slf4j
+    @Component
+    public static class CustomRecoveryHandlers {
+
+        /**
+         * 文件处理任务的自定义恢复逻辑
+         */
+        @TaskRecoveryHandler(taskName = "processFile", priority = 0)
+        public void recoverFileProcessing(TaskLogDTO taskLog) {
+            log.info("自定义恢复文件处理任务: {}", taskLog.getTaskId());
+
+            String filePath = taskLog.getBizKey();
+            File file = new File(filePath);
+
+            if (file.exists()) {
+                log.info("文件存在，重新处理: {}", filePath);
+                // 重新处理逻辑
+            } else {
+                log.warn("文件不存在，无法恢复: {}", filePath);
+                // 可以发送告警、记录日志等
+            }
+        }
+
+        /**
+         * 订单处理任务的自定义恢复逻辑
+         */
+        @TaskRecoveryHandler(taskName = "processOrder", priority = 0)
+        public void recoverOrderProcessing(TaskLogDTO taskLog) {
+            log.info("自定义恢复订单处理任务: {}", taskLog.getTaskId());
+
+            String orderId = taskLog.getBizKey();
+            log.info("检查订单状态: {}", orderId);
+
+            // 查询订单状态
+            // 根据状态决定如何恢复
+            // 可能需要补偿操作、回滚、或重新执行
+        }
+    }
+}

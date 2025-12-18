@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch:*)",
+      "Bash(ls:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(dir:*)",
+      "Bash(mvn clean compile:*)"
+    ]
+  }
+}

@@ -1,50 +1,254 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+- Version: 0.0.0 → 1.0.0 (初始版本)
+- 新增原则: 所有原则均为新增
+- 新增章节: DDD领域设计、技术栈约束、开发工作流
+- 模板更新状态:
+  ✅ plan-template.md - 已审查,需添加DDD层次结构指导
+  ✅ spec-template.md - 已审查,需确保需求遵循领域模型
+  ✅ tasks-template.md - 已审查,需按DDD分层组织任务
+- 后续待办:
+  - 无待定占位符
+-->
 
-## Core Principles
+# Task Monitor Starter 项目宪章
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+## 核心原则
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### 一、领域驱动设计(DDD)优先 (不可协商)
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+**原则声明**:
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+- 必须遵循DDD战术设计模式进行代码组织
+- 核心业务逻辑必须位于领域层,保持纯净无外部依赖
+- 实体(Entity)、值对象(Value Object)、领域服务(Domain Service)、仓储(Repository)必须有明确边界
+- 应用服务(Application Service)负责编排,不包含业务逻辑
+- 基础设施层负责技术实现(存储、消息、外部集成)
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+**理由**:
+DDD确保业务逻辑的可测试性、可维护性和演进性。通过显式的领域模型,代码表达业务意图,而非技术实现细节。这对于任务监控这类核心基础设施组件尤为重要,因为需求会随业务场景不断演进。
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+**具体要求**:
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+- 项目结构必须反映DDD分层: `domain/`、`application/`、`infrastructure/`、`interfaces/`
+- 领域对象禁止直接依赖Spring注解(如`@Component`、`@Autowired`)
+- 仓储接口定义在领域层,实现在基础设施层
+- 领域事件用于跨聚合通信
+- 聚合根负责维护业务不变性约束
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+### 二、Hutool工具库优先
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+**原则声明**:
 
-## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
+- 必须优先使用Hutool工具类进行常见操作:字符串处理、集合操作、日期时间、JSON序列化、加密、网络请求、文件操作等
+- 仅当Hutool无法满足需求时,才考虑引入Spring相关包或其他第三方库
+- 禁止同时使用Hutool和其他库完成相同功能(如同时用`StrUtil`和`StringUtils`)
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+**理由**:
+Hutool提供统一、轻量、易用的工具API,减少依赖复杂度和学习成本。避免Spring工具类可以降低与Spring框架的耦合度,提升组件的独立性和可复用性。
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**具体映射**:
+
+- 字符串操作: `StrUtil` (不使用`StringUtils`)
+- 集合操作: `CollUtil` (不使用`CollectionUtils`)
+- JSON处理: `JSONUtil` (不使用`ObjectMapper`直接依赖)
+- 日期时间: `DateUtil`、`LocalDateTimeUtil` (不使用`DateUtils`)
+- 加密哈希: `SecureUtil`、`DigestUtil`
+- 文件IO: `FileUtil`、`IoUtil`
+- HTTP请求: `HttpUtil` (除非需要复杂的HTTP客户端)
+- 反射操作: `ReflectUtil`、`ClassUtil`
+- Bean操作: `BeanUtil`
+
+### 三、测试优先(TDD方法论)
+
+**原则声明**:
+
+- 必须先编写测试,确保测试失败(红灯)
+- 获得用户批准后,实现最小化代码使测试通过(绿灯)
+- 重构优化代码,保持测试通过
+- 领域逻辑必须有单元测试覆盖率≥80%
+- 关键业务场景必须有集成测试
+
+**理由**:
+TDD确保代码设计的可测试性,驱动出清晰的接口和职责划分。对于任务监控这类基础设施,测试是质量保障的唯一可靠手段。
+
+**测试分类**:
+
+- **单元测试**: 领域对象、领域服务、应用服务的纯逻辑测试
+- **集成测试**: 仓储实现、外部存储(Redis/数据库)、AOP切面
+- **契约测试**: 公开API的行为契约(注解、配置属性)
+
+### 四、可插拔架构
+
+**原则声明**:
+
+- 所有外部依赖必须通过接口抽象
+- 必须提供至少两种实现以验证可插拔性(如内存存储、数据库存储)
+- 使用策略模式实现多种行为选择(如序列化策略、恢复策略)
+- 通过配置切换实现,无需修改代码
+
+**理由**:
+可插拔设计使组件适应不同部署环境(单机、分布式、测试、生产)。通过接口隔离变化,核心逻辑保持稳定。
+
+**应用场景**:
+
+- 存储后端: 内存/Redis/数据库
+- 告警渠道: 钉钉/邮件/企业微信
+- 序列化策略: 自动判断/强制序列化/禁用序列化
+- 恢复策略: 自动恢复/自定义处理器/不恢复
+
+### 五、可观测性优先
+
+**原则声明**:
+
+- 所有关键操作必须记录结构化日志
+- 使用不同日志级别: DEBUG(参数详情)、INFO(状态转换)、WARN(异常但可恢复)、ERROR(失败需人工介入)
+- 关键指标必须暴露: 任务执行次数、成功率、失败类型分布、心跳超时数、恢复成功率
+- 错误信息必须包含上下文: taskId、taskName、bizKey、hostIp
+
+**理由**:
+任务监控本身是观测性工具,自身必须具备高可观测性。结构化日志和指标帮助运维人员快速定位问题。
+
+### 六、版本化与破坏性变更管理
+
+**原则声明**:
+
+- 使用语义化版本: `主版本.次版本.补丁版本`
+- 主版本变更: 删除公开API、修改注解属性语义、数据库表结构不兼容变更
+- 次版本变更: 新增注解属性、新增存储类型、新增配置项
+- 补丁版本: Bug修复、性能优化、文档更新
+- 破坏性变更必须提供迁移指南
+
+**理由**:
+作为基础设施组件,版本兼容性直接影响使用方的升级成本。明确的版本语义降低升级风险。
+
+### 七、简约设计(YAGNI原则)
+
+**原则声明**:
+
+- 不实现当前未明确需要的功能
+- 优先使用简单方案,仅在必要时引入复杂性
+- 每个复杂设计必须有明确的业务驱动和替代方案对比
+- 代码行数和依赖数量作为复杂度指标定期审查
+
+**理由**:
+过早优化和过度设计导致维护成本增加。简约设计保持代码的可理解性和演进灵活性。
+
+**复杂度红线**:
+
+- 单个类不超过500行
+- 单个方法不超过50行
+- 依赖深度不超过5层
+- Maven依赖数量≤15个
+
+## DDD领域设计约束
+
+### 聚合划分
+
+本项目识别出以下聚合:
+
+1. **任务执行聚合 (TaskExecution Aggregate)**
+    - 聚合根: `TaskExecution`
+    - 实体: `HeartbeatRecord`(心跳记录)
+    - 值对象: `TaskId`、`TaskName`、`BizKey`、`SerializedParams`、`ExecutionResult`、`ErrorInfo`
+    - 领域服务: `TaskExecutionService`(协调任务生命周期)
+    - 仓储: `TaskExecutionRepository`
+
+2. **恢复策略聚合 (RecoveryPolicy Aggregate)**
+    - 聚合根: `RecoveryPolicy`
+    - 值对象: `RetryConfig`、`ExceptionClassification`
+    - 领域服务: `RecoveryDecisionService`(判断是否可恢复)
+
+### 领域事件
+
+必须定义并发布以下领域事件:
+
+- `TaskStartedEvent`: 任务开始执行
+- `TaskCompletedEvent`: 任务成功完成
+- `TaskFailedEvent`: 任务失败
+- `TaskInterruptedEvent`: 任务中断
+- `HeartbeatTimeoutEvent`: 心跳超时
+- `TaskRetryScheduledEvent`: 任务调度重试
+- `TaskRecoveredEvent`: 任务恢复成功
+
+### 不变性约束
+
+领域对象必须维护以下业务规则:
+
+- 任务状态转换必须合法: RUNNING→SUCCESS/FAILED/INTERRUPTED, INTERRUPTED→RETRY, RETRY→RUNNING
+- 心跳时间戳必须单调递增
+- 重试次数不能超过最大重试限制
+- 参数序列化大小不能超过配置上限
+- 任务执行必须有唯一的taskId
+
+## 开发工作流
+
+### 分支策略
+
+- `main`: 稳定发布分支,仅接受合并提交
+- `develop`: 开发集成分支
+- `feature/###-feature-name`: 功能分支(基于issue编号)
+- `fix/###-bug-description`: 缺陷修复分支
+
+### 提交规范
+
+遵循约定式提交(Conventional Commits):
+
+- `feat: 添加心跳超时检测功能`
+- `fix: 修复参数序列化大小计算错误`
+- `refactor: 重构任务恢复逻辑以遵循DDD模式`
+- `test: 添加任务中断恢复的集成测试`
+- `docs: 更新配置参数说明文档`
+
+### Code Review检查点
+
+所有PR必须验证:
+
+1. ✅ DDD分层正确,领域层无技术依赖
+2. ✅ 优先使用Hutool,无重复工具类引入
+3. ✅ 测试先行,红绿重构周期完整
+4. ✅ 可插拔接口设计合理
+5. ✅ 日志记录充分,包含必要上下文
+6. ✅ 提交信息符合约定式提交规范
+
+### 质量门禁
+
+发布前必须满足:
+
+- 单元测试覆盖率≥80%
+- 所有集成测试通过
+- 代码静态扫描无严重问题
+- 文档与代码同步更新
+- 性能测试通过(1000并发任务,P95<100ms)
+
+## 治理规则
+
+### 宪章权威性
+
+本宪章是项目的最高技术指导文件,所有设计决策和代码实现必须遵循宪章原则。
+
+### 修订流程
+
+1. 提出修订提案,说明修改原因和影响范围
+2. 团队讨论并达成共识
+3. 更新宪章文档并递增版本号
+4. 同步更新相关模板和指导文档
+5. 通知所有相关方
+
+### 复杂度豁免
+
+如果必须违背"简约设计"原则引入复杂性,必须:
+
+1. 在设计文档中填写"复杂度跟踪"表格
+2. 说明为何更简单的方案不可行
+3. 获得技术负责人批准
+4. 在代码中添加注释说明复杂度来源
+
+### 运行时开发指导
+
+- 使用`specs/`目录下的`spec.md`定义用户场景和需求
+- 使用`plan.md`进行技术设计和架构决策
+- 使用`tasks.md`分解实施任务
+- 开发过程中持续参考本宪章,确保合规性
+
+**版本**: 1.0.0 | **批准日期**: 2025-12-17 | **最后修订**: 2025-12-17
