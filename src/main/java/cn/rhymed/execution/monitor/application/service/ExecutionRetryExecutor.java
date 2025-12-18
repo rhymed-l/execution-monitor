@@ -64,16 +64,11 @@ public class ExecutionRetryExecutor {
     public boolean executeRetry(ExecutionRecord execution) {
         try {
             // 检查是否有自定义恢复处理器
-            String executionName = execution.getExecutionName().getValue();
-            Optional<RecoveryHandlerRegistry.HandlerMethod> handler = handlerRegistry.getHandler(executionName);
+            String name = execution.getExecutionName().getValue();
+            Optional<RecoveryHandlerRegistry.HandlerMethod> handler = handlerRegistry.getHandler(name);
 
-            if (handler.isPresent()) {
-                // 使用自定义恢复处理器
-                return executeCustomRecovery(execution, handler.get());
-            } else {
-                // 使用默认重试逻辑
-                return executeDefaultRetry(execution);
-            }
+            // 使用自定义恢复处理器
+            return handler.map(handlerMethod -> executeCustomRecovery(execution, handlerMethod)).orElseGet(() -> executeDefaultRetry(execution));
 
         } catch (Exception e) {
             log.error("执行任务重试失败: {}", execution.getExecutionId(), e);

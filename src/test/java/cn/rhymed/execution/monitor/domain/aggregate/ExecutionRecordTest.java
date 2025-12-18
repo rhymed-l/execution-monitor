@@ -21,16 +21,16 @@ class ExecutionRecordTest {
     @Test
     void should_create_execution_execution_with_running_status() {
         // Given
-        ExecutionName executionName = ExecutionName.of("testExecution");
+        ExecutionName name = ExecutionName.of("testExecution");
         BizKey bizKey = BizKey.of("order123");
         SerializedParams params = SerializedParams.empty();
 
         // When
-        ExecutionRecord execution = ExecutionRecord.create(executionName, bizKey, params, 3);
+        ExecutionRecord execution = ExecutionRecord.create(name, bizKey, params, 3);
 
         // Then
         assertNotNull(execution.getExecutionId());
-        assertEquals(executionName, execution.getExecutionName());
+        assertEquals(name, execution.getExecutionName());
         assertEquals(bizKey, execution.getBizKey());
         assertEquals(ExecutionStatus.RUNNING, execution.getStatus());
         assertEquals(0, execution.getRetryCount());

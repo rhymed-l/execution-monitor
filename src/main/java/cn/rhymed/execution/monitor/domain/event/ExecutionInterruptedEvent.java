@@ -63,7 +63,7 @@ public class ExecutionInterruptedEvent implements Serializable {
     public String toString() {
         return "ExecutionInterruptedEvent{" +
                 "executionId=" + executionId +
-                ", executionName=" + executionName +
+                ", name =" + executionName +
                 ", reason='" + reason + '\'' +
                 '}';
     }

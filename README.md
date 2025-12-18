@@ -1,24 +1,24 @@
-# Task Monitor Spring Boot Starter
+# Execution Monitor Spring Boot Starter
 
-一个基于DDD（领域驱动设计）的任务监控 Spring Boot Starter，提供任务执行监控、心跳检测、智能序列化、自动恢复、异常重试等功能。
+一个基于DDD（领域驱动设计）的执行监控 Spring Boot Starter，提供方法执行监控、心跳检测、智能序列化、自动恢复、异常重试等功能。
 
 ## 特性
 
 ### 核心功能
 
-- **任务执行监控**: 通过 `@TaskMonitor` 注解自动记录任务执行状态、耗时、成功/失败信息
-- **心跳检测**: 监控长时间运行任务的健康状态，自动检测超时任务
+- **执行监控**: 通过 `@Monitor` 注解自动记录方法执行状态、耗时、成功/失败信息
+- **心跳检测**: 监控长时间运行方法的健康状态，自动检测超时
 - **智能序列化**: 自动判断方法参数是否可序列化，避免不必要的序列化开销
-- **自动恢复**: 应用启动时自动恢复中断的任务，支持多种恢复策略
+- **自动恢复**: 应用启动时自动恢复中断的执行，支持多种恢复策略
 - **异常重试**: 基于异常类型的智能重试机制，支持指数退避策略
-- **自定义恢复处理器**: 通过 `@TaskRecoveryHandler` 注解实现业务自定义恢复逻辑
+- **自定义恢复处理器**: 通过 `@RecoveryHandler` 注解实现业务自定义恢复逻辑
 - **灵活存储后端**: 支持内存、Redis、数据库三种存储方式
 
 ### 技术亮点
 
 - **DDD架构**: 严格遵循领域驱动设计，清晰的4层架构（domain/application/infrastructure/interfaces）
 - **值对象**: 使用不可变值对象保证领域模型完整性
-- **聚合根**: TaskExecution和RecoveryPolicy作为聚合根管理业务规则
+- **聚合根**: ExecutionRecord和RecoveryPolicy作为聚合根管理业务规则
 - **领域事件**: 7种领域事件实现跨聚合通信
 - **Hutool优先**: 优先使用Hutool工具包，性能更优
 - **Lombok简化**: 使用Lombok注解简化PO和DTO代码
@@ -29,10 +29,9 @@
 ### 1. 添加依赖
 
 ```xml
-
 <dependency>
     <groupId>cn.rhymed</groupId>
-    <artifactId>task-monitor-spring-boot-starter</artifactId>
+    <artifactId>execution-monitor-spring-boot-starter</artifactId>
     <version>1.0.0</version>
 </dependency>
 ```
@@ -42,7 +41,7 @@
 在 `application.yml` 中添加配置：
 
 ```yaml
-task:
+execution:
   monitor:
     enabled: true
     storage-type: memory  # 可选: memory, redis, database
@@ -51,21 +50,18 @@ task:
 ### 3. 使用注解
 
 ```java
-
 @Service
 public class FileProcessService {
 
-    @TaskMonitor(
-            taskName = "processFile",
+    @Monitor(
+            name = "processFile",
             bizKey = "#file.path",
-            serializeParams = true,
-            maxRetry = 3,
-            enableHeartbeat = true,
-            heartbeatIntervalSeconds = 60
+            serializeParams = SerializationMode.ALWAYS,
+            maxRetry = 3
     )
     public void processLargeFile(File file) {
         // 文件处理逻辑
-        // 自动记录执行状态、支持心跳检测、失败自动重试
+        // 自动记录执行状态、失败自动重试
     }
 }
 ```
@@ -78,7 +74,7 @@ public class FileProcessService {
 
 ```java
 
-@TaskMonitor(taskName = "sendEmail")
+@Monitor(name = "sendEmail")
 public void sendEmail(String to, String subject, String body) {
     // 邮件发送逻辑
 }
@@ -90,8 +86,8 @@ public void sendEmail(String to, String subject, String body) {
 
 ```java
 
-@TaskMonitor(
-        taskName = "processOrder",
+@Monitor(
+        name = "processOrder",
         bizKey = "#orderId"  // SpEL表达式，自动获取参数值
 )
 public void processOrder(String orderId, OrderData data) {
@@ -101,38 +97,35 @@ public void processOrder(String orderId, OrderData data) {
 
 ### 参数序列化
 
-对于需要恢复的任务，启用参数序列化：
+对于需要恢复的执行，配置参数序列化：
 
 ```java
 
-@TaskMonitor(
-        taskName = "importData",
-        serializeParams = true  // 序列化参数以便任务恢复
+@Monitor(
+        name = "importData",
+        serializeParams = SerializationMode.ALWAYS  // 强制序列化参数以便恢复
 )
 public void importData(List<Record> records) {
     // 数据导入逻辑
 }
 ```
 
-> 注意：只有在 `serializeParams=true` 时才会尝试序列化参数。系统会智能判断参数是否可序列化，不可序列化的参数会自动跳过。
+序列化模式说明：
+
+- `AUTO`（默认）：系统智能判断是否需要序列化
+- `ALWAYS`：总是序列化参数
+- `NEVER`：从不序列化参数
 
 ### 心跳监控
 
-对于长时间运行的任务，启用心跳监控：
+心跳监控默认启用，通过全局配置控制：
 
-```java
-
-@TaskMonitor(
-        taskName = "batchProcessing",
-        enableHeartbeat = true,
-        heartbeatIntervalSeconds = 60  // 每60秒发送一次心跳
-)
-public void batchProcess(List<Item> items) {
-    for (Item item : items) {
-        // 长时间处理逻辑
-        // 系统会自动发送心跳，检测任务是否超时
-    }
-}
+```yaml
+execution:
+  monitor:
+    heartbeat:
+      enabled: true  # 默认启用
+      interval-seconds: 300  # 默认300秒
 ```
 
 ### 异常重试
@@ -140,7 +133,7 @@ public void batchProcess(List<Item> items) {
 配置可重试和可忽略的异常：
 
 ```yaml
-task:
+execution:
   monitor:
     retry:
       max-retry: 3
@@ -155,8 +148,8 @@ task:
 
 ```java
 
-@TaskMonitor(
-        taskName = "callExternalApi",
+@Monitor(
+        name = "callExternalApi",
         maxRetry = 5  // 覆盖全局配置
 )
 public ApiResponse callApi(String endpoint) {
@@ -170,17 +163,16 @@ public ApiResponse callApi(String endpoint) {
 当默认重试逻辑无法满足需求时，实现自定义恢复处理器：
 
 ```java
-
 @Component
 public class FileRecoveryHandler {
 
-    @TaskRecoveryHandler(
-            taskName = "processFile",
+    @RecoveryHandler(
+            name = "processFile",
             priority = 0  // 优先级，值越小优先级越高
     )
-    public void recoverFileProcessing(TaskLogDTO taskLog) {
+    public void recoverFileProcessing(ExecutionLogDTO executionLog) {
         // 自定义恢复逻辑
-        String filePath = taskLog.getBizKey();
+        String filePath = executionLog.getBizKey();
         File file = new File(filePath);
 
         if (file.exists()) {
@@ -198,9 +190,9 @@ public class FileRecoveryHandler {
 ### 完整配置示例
 
 ```yaml
-task:
+execution:
   monitor:
-    # 是否启用任务监控
+    # 是否启用执行监控
     enabled: true
 
     # 存储类型: memory, redis, database
@@ -208,14 +200,15 @@ task:
 
     # 心跳监控配置
     heartbeat:
-      enabled: true
-      interval-seconds: 60
+      enabled: true  # 默认启用
+      interval-seconds: 300  # 默认300秒
       check-interval-seconds: 30
-      timeout-threshold: 2
 
     # 重试配置
     retry:
       max-retry: 3
+      base-interval-seconds: 60
+      exponential-backoff: true
       retryable-exceptions:
         - TimeoutException
         - IOException
@@ -224,18 +217,20 @@ task:
 
     # 恢复配置
     recovery:
-      enabled: true
-      default-strategy: AUTO  # AUTO, ALWAYS, NEVER, CUSTOM
+      enabled: false
+      strategy: AUTO  # AUTO, ALWAYS, NEVER, CUSTOM
+      check-on-startup: true
 
     # 序列化配置
     serialization:
-      max-param-size-bytes: 10240
+      enabled: true
+      max-size-bytes: 10240  # 10KB
 
     # 清理配置
     cleanup:
-      enabled: true
+      enabled: false
       retention-days: 7
-      schedule-cron: "0 0 2 * * ?"
+      interval-seconds: 86400
 ```
 
 ### 存储后端配置
@@ -243,7 +238,7 @@ task:
 #### 内存存储（默认）
 
 ```yaml
-task:
+execution:
   monitor:
     storage-type: memory
 ```
@@ -253,7 +248,7 @@ task:
 #### Redis存储
 
 ```yaml
-task:
+execution:
   monitor:
     storage-type: redis
 
@@ -267,7 +262,6 @@ spring:
 适用于分布式环境，需要添加Redis依赖：
 
 ```xml
-
 <dependency>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-data-redis</artifactId>
@@ -277,13 +271,13 @@ spring:
 #### 数据库存储
 
 ```yaml
-task:
+execution:
   monitor:
     storage-type: database
 
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/task_monitor
+    url: jdbc:mysql://localhost:3306/execution_monitor
     username: root
     password: your-password
 ```
@@ -304,57 +298,47 @@ spring:
 <groupId>com.mysql</groupId>
 <artifactId>mysql-connector-j</artifactId>
 </dependency>
-
-        <!-- PostgreSQL示例 -->
-        <!--
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-        </dependency>
-        -->
 ```
 
 > **注意**：
-> - Task Monitor使用原生MyBatis，保持最小依赖
+> - Execution Monitor使用原生MyBatis，保持最小依赖
 > - **Starter不包含数据库驱动**，您可以自由选择MySQL、PostgreSQL、Oracle等任何数据库
 > - MyBatis和数据库驱动需要在您的项目中显式添加
 
 需要创建数据表：
 
 ```sql
-CREATE TABLE task_execution_log
+CREATE TABLE execution_log
 (
-    id                         BIGINT PRIMARY KEY AUTO_INCREMENT,
-    task_id                    VARCHAR(64)  NOT NULL,
-    task_name                  VARCHAR(128) NOT NULL,
-    biz_key                    VARCHAR(256),
-    params_json                TEXT,
-    params_size_bytes          INT,
-    status                     VARCHAR(32)  NOT NULL,
-    error_message              TEXT,
-    exception_type             VARCHAR(256),
-    start_time                 DATETIME,
-    end_time                   DATETIME,
-    retry_count                INT     DEFAULT 0,
-    max_retry                  INT     DEFAULT 0,
-    heartbeat_enabled          BOOLEAN DEFAULT FALSE,
-    heartbeat_interval_seconds INT,
-    created_at                 DATETIME,
-    updated_at                 DATETIME,
-    INDEX                      idx_task_id (task_id),
-    INDEX                      idx_status (status),
-    INDEX                      idx_task_name (task_name)
+    id                BIGINT PRIMARY KEY AUTO_INCREMENT,
+    execution_id      VARCHAR(64)  NOT NULL,
+    execution_name    VARCHAR(128) NOT NULL,
+    biz_key           VARCHAR(256),
+    params_json       TEXT,
+    params_size_bytes INT,
+    status            VARCHAR(32)  NOT NULL,
+    error_message     TEXT,
+    exception_type    VARCHAR(256),
+    start_time        DATETIME,
+    end_time          DATETIME,
+    retry_count       INT DEFAULT 0,
+    max_retry         INT DEFAULT 0,
+    created_at        DATETIME,
+    updated_at        DATETIME,
+    INDEX             idx_execution_id (execution_id),
+    INDEX             idx_status (status),
+    INDEX             idx_execution_name (execution_name)
 );
 
-CREATE TABLE task_heartbeat
+CREATE TABLE execution_heartbeat
 (
     id               BIGINT PRIMARY KEY AUTO_INCREMENT,
-    task_id          VARCHAR(64) NOT NULL UNIQUE,
+    execution_id VARCHAR(64) NOT NULL UNIQUE,
     interval_seconds INT         NOT NULL,
     last_heartbeat   DATETIME    NOT NULL,
     created_at       DATETIME,
     updated_at       DATETIME,
-    INDEX            idx_task_id (task_id)
+    INDEX        idx_execution_id (execution_id)
 );
 ```
 
@@ -370,7 +354,7 @@ CREATE TABLE task_heartbeat
 
 ### ALWAYS（总是恢复）
 
-总是尝试恢复任务，适用于关键业务。
+总是尝试恢复执行，适用于关键业务。
 
 ### NEVER（从不恢复）
 
@@ -378,13 +362,13 @@ CREATE TABLE task_heartbeat
 
 ### CUSTOM（自定义恢复）
 
-使用 `@TaskRecoveryHandler` 注解实现自定义恢复逻辑。
+使用 `@RecoveryHandler` 注解实现自定义恢复逻辑。
 
 ## 监控指标
 
 框架提供以下监控数据：
 
-- 任务ID和名称
+- 执行ID和名称
 - 业务键（bizKey）
 - 执行状态（RUNNING, SUCCESS, FAILED, RETRY等）
 - 开始时间和结束时间
@@ -400,61 +384,57 @@ bizKey用于关联业务数据，便于问题排查：
 
 ```java
 // 好的做法
-@TaskMonitor(taskName = "processOrder", bizKey = "#orderId")
+@Monitor(name = "processOrder", bizKey = "#orderId")
 public void processOrder(String orderId, OrderData data) {
 }
 
 // 不好的做法（没有业务关联）
-@TaskMonitor(taskName = "processOrder")
+@Monitor(name = "processOrder")
 public void processOrder(String orderId, OrderData data) {
 }
 ```
 
 ### 2. 谨慎使用参数序列化
 
-只对确实需要恢复的任务启用序列化：
+对于确实需要恢复的执行，使用 `ALWAYS` 模式：
 
 ```java
 // 好的做法（关键任务需要恢复）
-@TaskMonitor(taskName = "importData", serializeParams = true)
+@Monitor(name = "importData", serializeParams = SerializationMode.ALWAYS)
 public void importData(List<Record> records) {
 }
 
-// 不好的做法（简单任务不需要序列化）
-@TaskMonitor(taskName = "sendNotification", serializeParams = true)
+// 推荐做法（使用默认的AUTO模式，系统智能判断）
+@Monitor(name = "sendNotification")
 public void sendNotification(String message) {
 }
 ```
 
 ### 3. 设置合理的重试次数
 
-根据任务特性设置重试次数：
+根据执行特性设置重试次数：
 
 ```java
 // API调用：较多重试
-@TaskMonitor(taskName = "callApi", maxRetry = 5)
+@Monitor(name = "callApi", maxRetry = 5)
 public void callApi() {
 }
 
 // 数据库操作：较少重试
-@TaskMonitor(taskName = "updateDb", maxRetry = 2)
+@Monitor(name = "updateDb", maxRetry = 2)
 public void updateDb() {
 }
 ```
 
-### 4. 长任务启用心跳
+### 4. 心跳监控
 
-对于执行时间超过1分钟的任务，建议启用心跳：
+心跳监控默认启用（间隔300秒），适用于长时间运行的方法。如需关闭，配置：
 
-```java
-
-@TaskMonitor(
-        taskName = "longRunningTask",
-        enableHeartbeat = true,
-        heartbeatIntervalSeconds = 60
-)
-public void longRunningTask() {
-}
+```yaml
+execution:
+  monitor:
+    heartbeat:
+      enabled: false
 ```
 
 ## 架构设计
@@ -464,7 +444,7 @@ public void longRunningTask() {
 ```
 ├── domain（领域层）
 │   ├── aggregate（聚合根）
-│   ├── valueobject（值对象）
+│   ├── model（值对象）
 │   ├── enums（枚举）
 │   ├── repository（仓储接口）
 │   ├── event（领域事件）
@@ -486,21 +466,21 @@ public void longRunningTask() {
 
 #### 聚合根
 
-- **TaskExecution**: 任务执行聚合根，封装任务生命周期
+- **ExecutionRecord**: 执行记录聚合根，封装执行生命周期
 - **RecoveryPolicy**: 恢复策略聚合根，定义恢复规则
 
 #### 值对象
 
-- TaskId, TaskName, BizKey
+- ExecutionId, ExecutionName, BizKey
 - SerializedParams, ErrorInfo
 - RetryConfig, ExceptionClassification
 
 #### 领域事件
 
-- TaskStartedEvent, TaskCompletedEvent
-- TaskFailedEvent, TaskInterruptedEvent
-- HeartbeatTimeoutEvent, RetryScheduledEvent
-- RecoveryAttemptedEvent
+- ExecutionStartedEvent, ExecutionCompletedEvent
+- ExecutionFailedEvent, ExecutionInterruptedEvent
+- HeartbeatTimeoutEvent, ExecutionMarkedForRetryEvent
+- ExecutionRecoveredEvent
 
 ## 性能说明
 
@@ -520,4 +500,4 @@ MIT License
 
 ## 作者
 
-task-monitor team
+execution-monitor team

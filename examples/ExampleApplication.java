@@ -1,8 +1,9 @@
-﻿package examples;
+package examples;
 
 import cn.rhymed.execution.monitor.application.dto.ExecutionLogDTO;
-import cn.rhymed.execution.monitor.interfaces.annotation.ExecutionMonitor;
-import cn.rhymed.execution.monitor.interfaces.annotation.ExecutionRecoveryHandler;
+import cn.rhymed.execution.monitor.common.enums.SerializationMode;
+import cn.rhymed.execution.monitor.interfaces.annotation.Monitor;
+import cn.rhymed.execution.monitor.interfaces.annotation.RecoveryHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -90,7 +91,7 @@ public class ExampleApplication {
         /**
          * 示例1: 基础任务监控
          */
-        @ExecutionMonitor(executionName = "basicExecution")
+        @Monitor(name = "basicExecution")
         public void basicExecution(String message) {
             log.info("执行基础任务: {}", message);
             // 任务执行状态会被自动记录
@@ -99,8 +100,8 @@ public class ExampleApplication {
         /**
          * 示例2: 使用业务键
          */
-        @ExecutionMonitor(
-                executionName = "processOrder",
+        @Monitor(
+                name = "processOrder",
                 bizKey = "#orderId"  // SpEL表达式
         )
         public void processOrder(String orderId, String product) {
@@ -109,28 +110,26 @@ public class ExampleApplication {
         }
 
         /**
-         * 示例3: 启用参数序列化
+         * 示例3: 启用参数序列化（使用 ALWAYS 模式强制序列化）
          */
-        @ExecutionMonitor(
-                executionName = "importData",
-                serializeParams = true
+        @Monitor(
+                name = "importData",
+                serializeParams = SerializationMode.ALWAYS
         )
         public void importData(String[] data) {
             log.info("导入数据，记录数: {}", data.length);
-            // 参数会被序列化，失败后可以恢复
+            // 参数会被强制序列化，失败后可以恢复
             for (String item : data) {
                 log.info("处理数据: {}", item);
             }
         }
 
         /**
-         * 示例4: 长时间运行任务，启用心跳
+         * 示例4: 长时间运行任务（心跳功能默认启用，通过全局配置控制）
          */
-        @ExecutionMonitor(
-                executionName = "longRunningExecution",
-                bizKey = "#executionId",
-                enableHeartbeat = true,
-                heartbeatIntervalSeconds = 30
+        @Monitor(
+                name = "longRunningExecution",
+                bizKey = "#executionId"
         )
         public void longRunningExecution(String executionId) {
             log.info("开始长时间运行任务: {}", executionId);
@@ -139,7 +138,7 @@ public class ExampleApplication {
                 for (int i = 0; i < 10; i++) {
                     Thread.sleep(10000); // 10秒
                     log.info("任务进度: {}%", (i + 1) * 10);
-                    // 系统会自动发送心跳
+                    // 系统会自动发送心跳（默认启用，间隔300秒）
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -150,8 +149,8 @@ public class ExampleApplication {
         /**
          * 示例5: 不稳定任务，可能失败需要重试
          */
-        @ExecutionMonitor(
-                executionName = "unstableExecution",
+        @Monitor(
+                name = "unstableExecution",
                 bizKey = "#executionId",
                 maxRetry = 3
         )
@@ -168,10 +167,10 @@ public class ExampleApplication {
         /**
          * 示例6: 文件处理任务（配合自定义恢复处理器）
          */
-        @ExecutionMonitor(
-                executionName = "processFile",
+        @Monitor(
+                name = "processFile",
                 bizKey = "#filePath",
-                serializeParams = true
+                serializeParams = SerializationMode.ALWAYS
         )
         public void processFile(String filePath) {
             log.info("处理文件: {}", filePath);
@@ -194,7 +193,7 @@ public class ExampleApplication {
         /**
          * 文件处理任务的自定义恢复逻辑
          */
-        @ExecutionRecoveryHandler(executionName = "processFile", priority = 0)
+        @RecoveryHandler(name = "processFile", priority = 0)
         public void recoverFileProcessing(ExecutionLogDTO executionLog) {
             log.info("自定义恢复文件处理任务: {}", executionLog.getExecutionId());
 
@@ -213,7 +212,7 @@ public class ExampleApplication {
         /**
          * 订单处理任务的自定义恢复逻辑
          */
-        @ExecutionRecoveryHandler(executionName = "processOrder", priority = 0)
+        @RecoveryHandler(name = "processOrder", priority = 0)
         public void recoverOrderProcessing(ExecutionLogDTO executionLog) {
             log.info("自定义恢复订单处理任务: {}", executionLog.getExecutionId());
 

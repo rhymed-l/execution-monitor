@@ -1,6 +1,7 @@
 package cn.rhymed.execution.monitor.application.service;
 
-import cn.rhymed.execution.monitor.interfaces.annotation.ExecutionRecoveryHandler;
+import cn.rhymed.execution.monitor.interfaces.annotation.RecoveryHandler;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
@@ -12,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 恢复处理器注册表
- * 扫描并注册所有@ExecutionRecoveryHandler标注的方法
+ * 扫描并注册所有@RecoveryHandler标注的方法
  *
  * @author rhymed.liu[rhymed.liu@anker-in.com]
  * @since 2025-12-10 11:44
@@ -30,7 +31,7 @@ public class RecoveryHandlerRegistry implements ApplicationContextAware {
     }
 
     /**
-     * 扫描所有@ExecutionRecoveryHandler标注的方法
+     * 扫描所有@RecoveryHandler标注的方法
      */
     private void scanHandlers() {
         String[] beanNames = applicationContext.getBeanDefinitionNames();
@@ -42,9 +43,9 @@ public class RecoveryHandlerRegistry implements ApplicationContextAware {
 
                 // 扫描所有方法
                 for (Method method : clazz.getDeclaredMethods()) {
-                    ExecutionRecoveryHandler annotation = method.getAnnotation(ExecutionRecoveryHandler.class);
+                    RecoveryHandler annotation = method.getAnnotation(RecoveryHandler.class);
                     if (annotation != null) {
-                        registerHandler(annotation.executionName(), bean, method, annotation.priority());
+                        registerHandler(annotation.name(), bean, method, annotation.priority());
                     }
                 }
             } catch (Exception e) {
@@ -58,24 +59,25 @@ public class RecoveryHandlerRegistry implements ApplicationContextAware {
     /**
      * 注册处理器
      */
-    private void registerHandler(String executionName, Object bean, Method method, int priority) {
+    private void registerHandler(String name, Object bean, Method method, int priority) {
         HandlerMethod handler = new HandlerMethod(bean, method, priority);
 
-        handlers.computeIfAbsent(executionName, k -> new ArrayList<>()).add(handler);
+        handlers.computeIfAbsent(name, k -> new ArrayList<>()).add(handler);
 
         // 按优先级排序
-        handlers.get(executionName).sort(Comparator.comparingInt(HandlerMethod::getPriority));
+        handlers.get(name).sort(Comparator.comparingInt(HandlerMethod::getPriority));
 
-        log.info("注册恢复处理器: {} -> {}.{}", executionName, bean.getClass().getSimpleName(), method.getName());
+        log.info("注册恢复处理器: {} -> {}.{}", name, bean.getClass().getSimpleName(), method.getName());
     }
 
     /**
      * 获取指定任务的处理器
      */
-    public Optional<HandlerMethod> getHandler(String executionName) {
-        List<HandlerMethod> handlerList = handlers.get(executionName);
+    public Optional<HandlerMethod> getHandler(String name) {
+        List<HandlerMethod> handlerList = handlers.get(name);
         if (handlerList != null && !handlerList.isEmpty()) {
-            return Optional.of(handlerList.get(0)); // 返回优先级最高的
+            // 返回优先级最高的
+            return Optional.of(handlerList.get(0));
         }
         return Optional.empty();
     }
@@ -83,13 +85,14 @@ public class RecoveryHandlerRegistry implements ApplicationContextAware {
     /**
      * 判断是否有处理器
      */
-    public boolean hasHandler(String executionName) {
-        return handlers.containsKey(executionName) && !handlers.get(executionName).isEmpty();
+    public boolean hasHandler(String name) {
+        return handlers.containsKey(name) && !handlers.get(name).isEmpty();
     }
 
     /**
      * 处理器方法包装类
      */
+    @Getter
     public static class HandlerMethod {
         private final Object bean;
         private final Method method;
@@ -106,16 +109,5 @@ public class RecoveryHandlerRegistry implements ApplicationContextAware {
             return method.invoke(bean, args);
         }
 
-        public Object getBean() {
-            return bean;
-        }
-
-        public Method getMethod() {
-            return method;
-        }
-
-        public int getPriority() {
-            return priority;
-        }
     }
 }

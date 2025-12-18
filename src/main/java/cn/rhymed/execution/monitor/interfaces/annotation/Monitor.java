@@ -1,27 +1,29 @@
 package cn.rhymed.execution.monitor.interfaces.annotation;
 
+import cn.rhymed.execution.monitor.common.enums.SerializationMode;
+
 import java.lang.annotation.*;
 
 /**
- * 执行监控注解
+ * 监控注解
  * 标记在需要监控的方法上,自动记录执行状态
  * <p>
  * 使用示例:
  * <pre>
  * // 指定执行名称
- * {@code @ExecutionMonitor(executionName = "processOrder", bizKey = "#orderId", serializeParams = true, maxRetry = 3)}
+ * {@code @Monitor(name = "processOrder", bizKey = "#orderId", serializeParams = true, maxRetry = 3)}
  * public void processOrder(String orderId, OrderData data) {
  *     // 业务逻辑
  * }
  *
  * // 不指定执行名称,自动使用方法名 "handlePayment"
- * {@code @ExecutionMonitor(bizKey = "#paymentId", maxRetry = 5)}
+ * {@code @Monitor(bizKey = "#paymentId", maxRetry = 5)}
  * public void handlePayment(String paymentId) {
  *     // 业务逻辑
  * }
  *
  * // 最简单的用法,只监控执行状态
- * {@code @ExecutionMonitor}
+ * {@code @Monitor}
  * public void syncData() {
  *     // 业务逻辑
  * }
@@ -33,14 +35,14 @@ import java.lang.annotation.*;
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface ExecutionMonitor {
+public @interface Monitor {
 
     /**
      * 执行名称(可选)
-     * 用于标识执行类型,相同执行名称的执行记录会被归类管理
+     * 用于标识执行类型,相同名称的执行记录会被归类管理
      * 如果不填,默认使用方法名
      */
-    String executionName() default "";
+    String name() default "";
 
     /**
      * 业务关键字表达式(可选)
@@ -50,29 +52,17 @@ public @interface ExecutionMonitor {
     String bizKey() default "";
 
     /**
-     * 是否序列化方法参数(可选)
-     * 如果为true,将把方法参数序列化为JSON存储
+     * 参数序列化模式(可选)
+     * AUTO: 自动检测是否需要序列化(默认)
+     * ALWAYS: 总是序列化参数
+     * NEVER: 从不序列化参数
      * 注意:参数对象需要支持JSON序列化
      */
-    boolean serializeParams() default false;
+    SerializationMode serializeParams() default SerializationMode.AUTO;
 
     /**
      * 最大重试次数(可选)
      * 默认值取自全局配置 execution.monitor.retry.max-retry
      */
     int maxRetry() default -1;
-
-    /**
-     * 是否启用心跳监控(可选)
-     * 如果为true,将定期检查任务是否存活
-     * 默认值取自全局配置 execution.monitor.heartbeat.enabled
-     */
-    boolean enableHeartbeat() default false;
-
-    /**
-     * 心跳间隔(秒)(可选)
-     * 仅在enableHeartbeat=true时生效
-     * 默认值取自全局配置 execution.monitor.heartbeat.interval-seconds
-     */
-    int heartbeatIntervalSeconds() default -1;
 }

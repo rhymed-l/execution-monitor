@@ -1,11 +1,12 @@
 package cn.rhymed.execution.monitor.contract;
 
 import cn.rhymed.execution.monitor.common.enums.ExecutionStatus;
+import cn.rhymed.execution.monitor.common.enums.SerializationMode;
 import cn.rhymed.execution.monitor.domain.aggregate.ExecutionRecord;
 import cn.rhymed.execution.monitor.domain.model.ExecutionName;
 import cn.rhymed.execution.monitor.domain.repository.ExecutionRecordRepository;
-import cn.rhymed.execution.monitor.interfaces.annotation.EnableExecutionMonitor;
-import cn.rhymed.execution.monitor.interfaces.annotation.ExecutionMonitor;
+import cn.rhymed.execution.monitor.interfaces.annotation.EnableMonitor;
+import cn.rhymed.execution.monitor.interfaces.annotation.Monitor;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,12 +19,12 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author rhymed.liu[rhymed.liu@anker-in.com]
- * @ExecutionMonitor注解契约测试 验证注解的基本使用场景符合用户期望
+ * @Monitor注解契约测试 验证注解的基本使用场景符合用户期望
  * TDD: 测试先行
  * @since 2025-12-10 11:44
  */
-@SpringBootTest(classes = ExecutionMonitorAnnotationContractTest.TestConfig.class)
-class ExecutionMonitorAnnotationContractTest {
+@SpringBootTest(classes = MonitorAnnotationContractTest.TestConfig.class)
+class MonitorAnnotationContractTest {
 
     @Autowired
     private SampleService sampleService;
@@ -33,7 +34,7 @@ class ExecutionMonitorAnnotationContractTest {
 
     @Test
     void contract_basic_execution_monitoring() {
-        // GIVEN: A method annotated with @ExecutionMonitor
+        // GIVEN: A method annotated with @Monitor
         // WHEN: The method is invoked and completes successfully
         String result = sampleService.processOrder("ORD-001");
 
@@ -51,7 +52,7 @@ class ExecutionMonitorAnnotationContractTest {
 
     @Test
     void contract_execution_failure_recording() {
-        // GIVEN: A method annotated with @ExecutionMonitor that throws exception
+        // GIVEN: A method annotated with @Monitor that throws exception
         // WHEN: The method is invoked and throws exception
         assertThrows(IllegalArgumentException.class,
                 () -> sampleService.validateInput(null));
@@ -112,7 +113,7 @@ class ExecutionMonitorAnnotationContractTest {
     }
 
     @Configuration
-    @EnableExecutionMonitor
+    @EnableMonitor
     static class TestConfig {
         @Bean
         public SampleService sampleService() {
@@ -121,29 +122,29 @@ class ExecutionMonitorAnnotationContractTest {
     }
 
     static class SampleService {
-        @ExecutionMonitor(executionName = "processOrder")
+        @Monitor(name = "processOrder")
         public String processOrder(String orderId) {
             return "Processed: " + orderId;
         }
 
-        @ExecutionMonitor(executionName = "validateInput")
+        @Monitor(name = "validateInput")
         public void validateInput(String input) {
             if (input == null) {
                 throw new IllegalArgumentException("Input cannot be null");
             }
         }
 
-        @ExecutionMonitor(executionName = "shipOrder", bizKey = "#orderId")
+        @Monitor(name = "shipOrder", bizKey = "#orderId")
         public void shipOrder(String orderId, String shippingMethod) {
             // Shipping logic
         }
 
-        @ExecutionMonitor(executionName = "calculateTotal", serializeParams = true)
+        @Monitor(name = "calculateTotal", serializeParams = SerializationMode.AUTO)
         public int calculateTotal(int price, int quantity) {
             return price * quantity;
         }
 
-        @ExecutionMonitor(executionName = "callExternalApi", maxRetry = 5)
+        @Monitor(name = "callExternalApi", maxRetry = 5)
         public void callExternalApi() {
             // API call logic
         }

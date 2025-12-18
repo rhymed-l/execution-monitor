@@ -9,6 +9,7 @@ import cn.rhymed.execution.monitor.infrastructure.persistence.database.mapper.He
 import cn.rhymed.execution.monitor.infrastructure.persistence.redis.RedisExecutionRecordRepository;
 import cn.rhymed.execution.monitor.infrastructure.persistence.redis.RedisHeartbeatStorage;
 import lombok.extern.slf4j.Slf4j;
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -33,7 +34,7 @@ public class StorageConfiguration {
     @Configuration
     @ConditionalOnProperty(name = "execution.monitor.storage-type", havingValue = "memory", matchIfMissing = true)
     public static class MemoryStorageConfiguration {
-        // 内存存储的bean已在ExecutionMonitorAutoConfiguration中注册
+        // 内存存储的bean已在MonitorAutoConfiguration中注册
     }
 
     /**
@@ -71,6 +72,7 @@ public class StorageConfiguration {
      */
     @Configuration
     @ConditionalOnProperty(name = "execution.monitor.storage-type", havingValue = "database")
+    @MapperScan("cn.rhymed.execution.monitor.infrastructure.persistence.database.mapper")
     public static class DatabaseStorageConfiguration {
 
         /**
@@ -78,7 +80,6 @@ public class StorageConfiguration {
          */
         @Bean
         @ConditionalOnMissingBean
-        @ConditionalOnBean(ExecutionLogMapper.class)
         public ExecutionRecordRepository databaseExecutionRecordRepository(ExecutionLogMapper mapper) {
             log.info("使用数据库存储实现");
             return new DatabaseExecutionRecordRepository(mapper);
@@ -89,7 +90,6 @@ public class StorageConfiguration {
          */
         @Bean
         @ConditionalOnMissingBean
-        @ConditionalOnBean(HeartbeatMapper.class)
         public HeartbeatStorage databaseHeartbeatStorage(HeartbeatMapper mapper) {
             log.info("使用数据库心跳存储");
             return new DatabaseHeartbeatStorage(mapper);

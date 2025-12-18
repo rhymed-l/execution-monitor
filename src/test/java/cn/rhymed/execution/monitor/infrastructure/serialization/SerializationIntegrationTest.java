@@ -1,11 +1,12 @@
 package cn.rhymed.execution.monitor.infrastructure.serialization;
 
+import cn.rhymed.execution.monitor.common.enums.SerializationMode;
 import cn.rhymed.execution.monitor.domain.aggregate.ExecutionRecord;
 import cn.rhymed.execution.monitor.domain.model.ExecutionName;
 import cn.rhymed.execution.monitor.domain.model.SerializedParams;
 import cn.rhymed.execution.monitor.domain.repository.ExecutionRecordRepository;
-import cn.rhymed.execution.monitor.interfaces.annotation.ExecutionMonitor;
-import cn.rhymed.execution.monitor.interfaces.config.ExecutionMonitorAutoConfiguration;
+import cn.rhymed.execution.monitor.interfaces.annotation.Monitor;
+import cn.rhymed.execution.monitor.interfaces.config.MonitorAutoConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -27,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * @since 2025-12-10 11:44
  */
 @SpringBootTest(classes = {
-        ExecutionMonitorAutoConfiguration.class,
+        MonitorAutoConfiguration.class,
         SerializationIntegrationTest.TestConfig.class
 })
 class SerializationIntegrationTest {
@@ -158,37 +159,37 @@ class SerializationIntegrationTest {
     }
 
     static class TestService {
-        @ExecutionMonitor(executionName = "methodWithSimpleParams", serializeParams = true)
+        @Monitor(name = "methodWithSimpleParams", serializeParams = SerializationMode.NEVER)
         public void methodWithSimpleParams(String str, int num) {
             // Test method
         }
 
-        @ExecutionMonitor(executionName = "methodWithComplexObject", serializeParams = true)
+        @Monitor(name = "methodWithComplexObject", serializeParams = SerializationMode.ALWAYS)
         public void methodWithComplexObject(UserDto user) {
             // Test method
         }
 
-        @ExecutionMonitor(executionName = "methodWithoutSerialization", serializeParams = false)
+        @Monitor(name = "methodWithoutSerialization", serializeParams = SerializationMode.NEVER)
         public void methodWithoutSerialization(String data) {
             // Test method
         }
 
-        @ExecutionMonitor(executionName = "methodWithStream", serializeParams = true)
+        @Monitor(name = "methodWithStream", serializeParams = SerializationMode.ALWAYS)
         public void methodWithStream(ByteArrayInputStream stream) {
             // Test method
         }
 
-        @ExecutionMonitor(executionName = "methodWithFile", serializeParams = true)
+        @Monitor(name = "methodWithFile", serializeParams = SerializationMode.ALWAYS)
         public void methodWithFile(File file) {
             // Test method
         }
 
-        @ExecutionMonitor(executionName = "methodWithLargeParam", serializeParams = true)
+        @Monitor(name = "methodWithLargeParam", serializeParams = SerializationMode.ALWAYS)
         public void methodWithLargeParam(String largeData) {
             // Test method
         }
 
-        @ExecutionMonitor(executionName = "methodWithNullParam", serializeParams = true)
+        @Monitor(name = "methodWithNullParam", serializeParams = SerializationMode.ALWAYS)
         public void methodWithNullParam(String nullData) {
             // Test method
         }

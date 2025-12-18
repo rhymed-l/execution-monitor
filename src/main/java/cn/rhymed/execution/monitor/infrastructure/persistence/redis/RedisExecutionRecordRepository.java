@@ -49,21 +49,21 @@ public class RedisExecutionRecordRepository implements ExecutionRecordRepository
         redisTemplate.opsForSet().add(statusIndexKey, execution.getExecutionId().getValue());
 
         // 添加到任务名称索引
-        String executionNameIndexKey = INDEX_TASK_NAME_PREFIX + execution.getExecutionName().getValue();
-        redisTemplate.opsForSet().add(executionNameIndexKey, execution.getExecutionId().getValue());
+        String nameIndexKey = INDEX_TASK_NAME_PREFIX + execution.getExecutionName().getValue();
+        redisTemplate.opsForSet().add(nameIndexKey, execution.getExecutionId().getValue());
 
         log.debug("保存任务执行记录到Redis: {}", execution.getExecutionId());
     }
 
     @Override
-    public void saveBatch(List<ExecutionRecord> ExecutionRecords) {
-        if (ExecutionRecords == null || ExecutionRecords.isEmpty()) {
+    public void saveBatch(List<ExecutionRecord> executionRecords) {
+        if (executionRecords == null || executionRecords.isEmpty()) {
             return;
         }
-        for (ExecutionRecord execution : ExecutionRecords) {
+        for (ExecutionRecord execution : executionRecords) {
             save(execution);
         }
-        log.debug("批量保存{}条任务执行记录到Redis", ExecutionRecords.size());
+        log.debug("批量保存{}条任务执行记录到Redis", executionRecords.size());
     }
 
     @Override
@@ -93,8 +93,8 @@ public class RedisExecutionRecordRepository implements ExecutionRecordRepository
 
     @Override
     public List<ExecutionRecord> findByExecutionName(ExecutionName executionName) {
-        String executionNameIndexKey = INDEX_TASK_NAME_PREFIX + executionName.getValue();
-        Set<String> executionIds = redisTemplate.opsForSet().members(executionNameIndexKey);
+        String nameIndexKey = INDEX_TASK_NAME_PREFIX + executionName.getValue();
+        Set<String> executionIds = redisTemplate.opsForSet().members(nameIndexKey);
 
         List<ExecutionRecord> result = new ArrayList<>();
         if (executionIds != null) {
@@ -182,8 +182,8 @@ public class RedisExecutionRecordRepository implements ExecutionRecordRepository
             redisTemplate.opsForSet().remove(statusIndexKey, executionId.getValue());
 
             // 从任务名称索引删除
-            String executionNameIndexKey = INDEX_TASK_NAME_PREFIX + exec.getExecutionName().getValue();
-            redisTemplate.opsForSet().remove(executionNameIndexKey, executionId.getValue());
+            String nameIndexKey = INDEX_TASK_NAME_PREFIX + exec.getExecutionName().getValue();
+            redisTemplate.opsForSet().remove(nameIndexKey, executionId.getValue());
         }
 
         log.debug("删除任务执行记录: {}", executionId);
@@ -226,8 +226,8 @@ public class RedisExecutionRecordRepository implements ExecutionRecordRepository
 
     @Override
     public long countByExecutionName(ExecutionName executionName) {
-        String executionNameIndexKey = INDEX_TASK_NAME_PREFIX + executionName.getValue();
-        Long count = redisTemplate.opsForSet().size(executionNameIndexKey);
+        String nameIndexKey = INDEX_TASK_NAME_PREFIX + executionName.getValue();
+        Long count = redisTemplate.opsForSet().size(nameIndexKey);
         return count != null ? count : 0L;
     }
 

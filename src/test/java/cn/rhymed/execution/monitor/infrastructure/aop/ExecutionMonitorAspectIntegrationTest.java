@@ -1,10 +1,11 @@
 package cn.rhymed.execution.monitor.infrastructure.aop;
 
 import cn.rhymed.execution.monitor.common.enums.ExecutionStatus;
+import cn.rhymed.execution.monitor.common.enums.SerializationMode;
 import cn.rhymed.execution.monitor.domain.aggregate.ExecutionRecord;
 import cn.rhymed.execution.monitor.domain.model.ExecutionName;
 import cn.rhymed.execution.monitor.domain.repository.ExecutionRecordRepository;
-import cn.rhymed.execution.monitor.interfaces.annotation.ExecutionMonitor;
+import cn.rhymed.execution.monitor.interfaces.annotation.Monitor;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,14 +18,14 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * ExecutionMonitorAspect 集成测试
+ * MonitorAspect 集成测试
  * TDD: 测试先行
  *
  * @author rhymed.liu[rhymed.liu@anker-in.com]
  * @since 2025-12-10 11:44
  */
-@SpringBootTest(classes = ExecutionMonitorAspectIntegrationTest.TestConfig.class)
-class ExecutionMonitorAspectIntegrationTest {
+@SpringBootTest(classes = MonitorAspectIntegrationTest.TestConfig.class)
+class MonitorAspectIntegrationTest {
 
     @Autowired
     private TestService testService;
@@ -98,28 +99,28 @@ class ExecutionMonitorAspectIntegrationTest {
             return new TestService();
         }
 
-        // ExecutionMonitorAspect bean will be registered by implementation
+        // MonitorAspect bean will be registered by implementation
         // ExecutionRecordRepository bean will be registered by implementation
-        // ExecutionMonitorService bean will be registered by implementation
+        // MonitorService bean will be registered by implementation
     }
 
     static class TestService {
-        @ExecutionMonitor(executionName = "successfulExecution")
+        @Monitor(name = "successfulExecution")
         public String successfulExecution(String input) {
             return "success: " + input;
         }
 
-        @ExecutionMonitor(executionName = "failingExecution")
+        @Monitor(name = "failingExecution")
         public void failingExecution() {
             throw new RuntimeException("Execution failed");
         }
 
-        @ExecutionMonitor(executionName = "executionWithBizKey", bizKey = "#orderId")
+        @Monitor(name = "executionWithBizKey", bizKey = "#orderId")
         public void executionWithBizKey(String orderId, String data) {
             // Business logic
         }
 
-        @ExecutionMonitor(executionName = "executionWithParams", serializeParams = true)
+        @Monitor(name = "executionWithParams", serializeParams = SerializationMode.AUTO)
         public void executionWithParams(String arg1, String arg2) {
             // Business logic
         }

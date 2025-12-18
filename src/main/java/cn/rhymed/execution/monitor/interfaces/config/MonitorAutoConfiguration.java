@@ -8,7 +8,7 @@ import cn.rhymed.execution.monitor.domain.service.RecoveryDecisionService;
 import cn.rhymed.execution.monitor.domain.service.SerializationDecisionService;
 import cn.rhymed.execution.monitor.infrastructure.alert.AlertService;
 import cn.rhymed.execution.monitor.infrastructure.alert.dingtalk.DingTalkAlertImpl;
-import cn.rhymed.execution.monitor.infrastructure.aop.ExecutionMonitorAspect;
+import cn.rhymed.execution.monitor.infrastructure.aop.MonitorAspect;
 import cn.rhymed.execution.monitor.infrastructure.persistence.memory.MemoryExecutionRecordRepository;
 import cn.rhymed.execution.monitor.infrastructure.persistence.memory.MemoryHeartbeatStorage;
 import cn.rhymed.execution.monitor.infrastructure.scheduler.HealthCheckScheduler;
@@ -21,6 +21,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.context.annotation.Import;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
@@ -33,14 +34,15 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @Slf4j
 @Configuration
 @ConditionalOnProperty(name = "execution.monitor.enabled", havingValue = "true", matchIfMissing = true)
-@EnableConfigurationProperties(ExecutionMonitorProperties.class)
+@EnableConfigurationProperties(MonitorProperties.class)
+@EnableAspectJAutoProxy
 @EnableScheduling
 @Import({
         StorageConfiguration.class
 })
-public class ExecutionMonitorAutoConfiguration {
+public class MonitorAutoConfiguration {
 
-    public ExecutionMonitorAutoConfiguration(ExecutionMonitorProperties properties) {
+    public MonitorAutoConfiguration(MonitorProperties properties) {
         log.info("任务监控启动 - 存储类型: {}", properties.getStorageType());
     }
 
@@ -76,7 +78,7 @@ public class ExecutionMonitorAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public ExceptionClassifier exceptionClassifier(ExecutionMonitorProperties properties) {
+    public ExceptionClassifier exceptionClassifier(MonitorProperties properties) {
         return new ExceptionClassifier(
                 properties.getRetry().getRetryableExceptions(),
                 properties.getRetry().getIgnorableExceptions()
@@ -99,9 +101,9 @@ public class ExecutionMonitorAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public ExecutionMonitorService ExecutionMonitorService(ExecutionRecordDomainService domainService,
+    public MonitorService MonitorService(ExecutionRecordDomainService domainService,
                                                            ExecutionRecordRepository repository) {
-        return new ExecutionMonitorService(domainService, repository);
+        return new MonitorService(domainService, repository);
     }
 
     /**
@@ -109,11 +111,11 @@ public class ExecutionMonitorAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public ExecutionMonitorAspect ExecutionMonitorAspect(ExecutionMonitorService ExecutionMonitorService,
-                                                         ExecutionMonitorProperties properties,
+    public MonitorAspect MonitorAspect(MonitorService MonitorService,
+                                       MonitorProperties properties,
                                                          SerializationDecisionService serializationService) {
-        log.info("注册ExecutionMonitor切面");
-        return new ExecutionMonitorAspect(ExecutionMonitorService, properties, serializationService);
+        log.info("注册Monitor切面");
+        return new MonitorAspect(MonitorService, properties, serializationService);
     }
 
     /**
@@ -166,7 +168,7 @@ public class ExecutionMonitorAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(name = "execution.monitor.alert.dingtalk.enabled", havingValue = "true")
-    public AlertService dingTalkAlertService(ExecutionMonitorProperties properties) {
+    public AlertService dingTalkAlertService(MonitorProperties properties) {
         String webhookUrl = System.getProperty("execution.monitor.alert.dingtalk.webhook-url", "");
         String secretKey = System.getProperty("execution.monitor.alert.dingtalk.secret", "");
         log.info("启用钉钉告警服务");

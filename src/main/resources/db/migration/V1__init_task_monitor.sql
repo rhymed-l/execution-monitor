@@ -32,11 +32,11 @@ CREATE TABLE IF NOT EXISTS execution_log
 (
     256
 ) COMMENT '异常类型',
+    stack_trace TEXT COMMENT '异常堆栈',
     start_time DATETIME COMMENT '开始时间',
     end_time DATETIME COMMENT '结束时间',
     retry_count INT DEFAULT 0 COMMENT '重试次数',
     max_retry INT DEFAULT 0 COMMENT '最大重试次数',
-    heartbeat_enabled BOOLEAN DEFAULT FALSE COMMENT '是否启用心跳',
     heartbeat_interval_seconds INT COMMENT '心跳间隔（秒）',
     created_at DATETIME NOT NULL COMMENT '创建时间',
     updated_at DATETIME NOT NULL COMMENT '更新时间',

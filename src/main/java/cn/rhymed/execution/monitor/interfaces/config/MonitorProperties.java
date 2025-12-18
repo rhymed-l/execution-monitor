@@ -17,7 +17,7 @@ import java.util.List;
 @Setter
 @Getter
 @ConfigurationProperties(prefix = "execution.monitor")
-public class ExecutionMonitorProperties {
+public class MonitorProperties {
 
     /**
      * 是否启用执行监控
@@ -63,12 +63,12 @@ public class ExecutionMonitorProperties {
         /**
          * 是否启用心跳监控
          */
-        private boolean enabled = false;
+        private boolean enabled = true;
 
         /**
          * 心跳间隔(秒)
          */
-        private int intervalSeconds = 60;
+        private int intervalSeconds = 300;
 
         /**
          * 心跳检测频率(秒)

@@ -31,18 +31,18 @@ class ExecutionRecordDomainServiceTest {
     @Test
     void should_create_execution_execution() {
         // Given
-        ExecutionName executionName = ExecutionName.of("testExecution");
+        ExecutionName name = ExecutionName.of("testExecution");
         BizKey bizKey = BizKey.of("order123");
         SerializedParams params = SerializedParams.of("[\"arg1\",\"arg2\"]");
         int maxRetry = 3;
 
         // When
-        ExecutionRecord execution = domainService.startExecution(executionName, bizKey, params, maxRetry);
+        ExecutionRecord execution = domainService.startExecution(name, bizKey, params, maxRetry);
 
         // Then
         assertNotNull(execution);
         assertEquals(ExecutionStatus.RUNNING, execution.getStatus());
-        assertEquals(executionName, execution.getExecutionName());
+        assertEquals(name, execution.getExecutionName());
         assertEquals(bizKey, execution.getBizKey());
         assertEquals(params, execution.getParams());
         assertEquals(0, execution.getRetryCount());

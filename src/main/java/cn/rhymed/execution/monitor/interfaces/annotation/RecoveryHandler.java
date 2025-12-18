@@ -3,12 +3,12 @@ package cn.rhymed.execution.monitor.interfaces.annotation;
 import java.lang.annotation.*;
 
 /**
- * 执行恢复处理器注解
+ * 恢复处理器注解
  * 用于标记自定义恢复处理器方法
  * <p>
  * 使用示例:
  * <pre>
- * {@code @ExecutionRecoveryHandler(executionName = "processFile")}
+ * {@code @RecoveryHandler(name = "processFile")}
  * public void recoverProcessFile(ExecutionLogDTO executionLog) {
  *     // 自定义恢复逻辑
  *     File file = new File(executionLog.getBizKey());
@@ -22,13 +22,13 @@ import java.lang.annotation.*;
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface ExecutionRecoveryHandler {
+public @interface RecoveryHandler {
 
     /**
      * 执行名称
-     * 对应@ExecutionMonitor的executionName
+     * 对应@Monitor的name
      */
-    String executionName();
+    String name();
 
     /**
      * 处理器优先级

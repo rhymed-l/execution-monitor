@@ -1,7 +1,7 @@
 package cn.rhymed.execution.monitor.application.service;
 
 import cn.rhymed.execution.monitor.application.dto.ExecutionLogDTO;
-import cn.rhymed.execution.monitor.interfaces.annotation.ExecutionRecoveryHandler;
+import cn.rhymed.execution.monitor.interfaces.annotation.RecoveryHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationContext;
@@ -104,7 +104,7 @@ class RecoveryHandlerRegistryIntegrationTest {
     static class FileRecoveryHandler {
         private final AtomicInteger invocationCount = new AtomicInteger(0);
 
-        @ExecutionRecoveryHandler(executionName = "fileProcessing", priority = 0)
+        @RecoveryHandler(name = "fileProcessing", priority = 0)
         public void recoverFileProcessing(ExecutionLogDTO executionLog) {
             invocationCount.incrementAndGet();
             // Simulate file recovery logic
@@ -117,13 +117,13 @@ class RecoveryHandlerRegistryIntegrationTest {
     }
 
     static class DataSyncRecoveryHandler {
-        @ExecutionRecoveryHandler(executionName = "dataSync", priority = 10)
+        @RecoveryHandler(name = "dataSync", priority = 10)
         public void recoverDataSyncHighPriority(ExecutionLogDTO executionLog) {
             // High priority handler
             System.out.println("High priority data sync recovery");
         }
 
-        @ExecutionRecoveryHandler(executionName = "dataSync", priority = 20)
+        @RecoveryHandler(name = "dataSync", priority = 20)
         public void recoverDataSyncLowPriority(ExecutionLogDTO executionLog) {
             // Low priority handler
             System.out.println("Low priority data sync recovery");

@@ -4,8 +4,8 @@ import cn.rhymed.execution.monitor.common.enums.ExecutionStatus;
 import cn.rhymed.execution.monitor.domain.aggregate.ExecutionRecord;
 import cn.rhymed.execution.monitor.domain.model.ExecutionName;
 import cn.rhymed.execution.monitor.domain.repository.ExecutionRecordRepository;
-import cn.rhymed.execution.monitor.interfaces.annotation.ExecutionMonitor;
-import cn.rhymed.execution.monitor.interfaces.config.ExecutionMonitorAutoConfiguration;
+import cn.rhymed.execution.monitor.interfaces.annotation.Monitor;
+import cn.rhymed.execution.monitor.interfaces.config.MonitorAutoConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  * @since 2025-12-10 11:44
  */
 @SpringBootTest(classes = {
-        ExecutionMonitorAutoConfiguration.class,
+        MonitorAutoConfiguration.class,
         RetryControlIntegrationTest.TestConfig.class
 })
 @TestPropertySource(properties = {
@@ -132,27 +132,27 @@ class RetryControlIntegrationTest {
     }
 
     static class TestService {
-        @ExecutionMonitor(executionName = "executionWithRetryableException", maxRetry = 3)
+        @Monitor(name = "executionWithRetryableException", maxRetry = 3)
         public void executionWithRetryableException() throws SocketTimeoutException {
             throw new SocketTimeoutException("Connection timeout");
         }
 
-        @ExecutionMonitor(executionName = "executionWithIgnorableException", maxRetry = 3)
+        @Monitor(name = "executionWithIgnorableException", maxRetry = 3)
         public void executionWithIgnorableException() {
             throw new IllegalArgumentException("Invalid input");
         }
 
-        @ExecutionMonitor(executionName = "executionWithNestedRetryableException", maxRetry = 3)
+        @Monitor(name = "executionWithNestedRetryableException", maxRetry = 3)
         public void executionWithNestedRetryableException() {
             throw new RuntimeException("Wrapper", new IOException("Nested IO error"));
         }
 
-        @ExecutionMonitor(executionName = "executionWithLimitedRetry", maxRetry = 1)
+        @Monitor(name = "executionWithLimitedRetry", maxRetry = 1)
         public void executionWithLimitedRetry() throws IOException {
             throw new IOException("IO error");
         }
 
-        @ExecutionMonitor(executionName = "executionWithExponentialBackoff", maxRetry = 3)
+        @Monitor(name = "executionWithExponentialBackoff", maxRetry = 3)
         public void executionWithExponentialBackoff() throws IOException {
             throw new IOException("IO error");
         }

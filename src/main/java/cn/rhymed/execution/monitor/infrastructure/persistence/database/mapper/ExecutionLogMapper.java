@@ -88,13 +88,13 @@ public interface ExecutionLogMapper {
      * 根据执行名称查询
      */
     @Select("SELECT * FROM execution_log WHERE execution_name = #{executionName} ORDER BY created_at DESC")
-    List<ExecutionLogPO> selectByExecutionName(@Param("executionName") String executionName);
+    List<ExecutionLogPO> selectByExecutionName(@Param("executionName") String name);
 
     /**
      * 根据执行名称和状态查询
      */
     @Select("SELECT * FROM execution_log WHERE execution_name = #{executionName} AND status = #{status} ORDER BY created_at DESC")
-    List<ExecutionLogPO> selectByExecutionNameAndStatus(@Param("executionName") String executionName, @Param("status") String status);
+    List<ExecutionLogPO> selectByExecutionNameAndStatus(@Param("executionName") String name, @Param("status") String status);
 
     /**
      * 查询可恢复的执行记录
@@ -139,7 +139,7 @@ public interface ExecutionLogMapper {
      * 统计指定执行名称的执行次数
      */
     @Select("SELECT COUNT(*) FROM execution_log WHERE execution_name = #{executionName}")
-    long countByExecutionName(@Param("executionName") String executionName);
+    long countByExecutionName(@Param("executionName") String name);
 
     /**
      * 清理指定时间和状态的执行记录

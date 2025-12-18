@@ -22,7 +22,7 @@ public class HeartbeatScheduler {
 
     /**
      * 更新指定任务的心跳
-     * 此方法由ExecutionMonitorAspect在任务执行过程中调用
+     * 此方法由MonitorAspect在任务执行过程中调用
      */
     public void updateExecutionHeartbeat(ExecutionId executionId) {
         try {

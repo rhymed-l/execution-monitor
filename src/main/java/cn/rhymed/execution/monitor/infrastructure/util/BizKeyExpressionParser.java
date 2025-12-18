@@ -11,7 +11,7 @@ import java.lang.reflect.Method;
 
 /**
  * BizKey表达式解析器
- * 用于解析@ExecutionMonitor注解中的SpEL表达式(如bizKey)
+ * 用于解析@Monitor注解中的SpEL表达式(如bizKey)
  *
  * @author rhymed.liu[rhymed.liu@anker-in.com]
  * @since 2025-12-10 11:44

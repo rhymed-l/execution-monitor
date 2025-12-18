@@ -15,12 +15,12 @@ import cn.rhymed.execution.monitor.domain.service.ExecutionRecordDomainService;
  * @author rhymed.liu[rhymed.liu@anker-in.com]
  * @since 2025-12-10 11:44
  */
-public class ExecutionMonitorService {
+public class MonitorService {
 
     private final ExecutionRecordDomainService domainService;
     private final ExecutionRecordRepository repository;
 
-    public ExecutionMonitorService(ExecutionRecordDomainService domainService,
+    public MonitorService(ExecutionRecordDomainService domainService,
                                    ExecutionRecordRepository repository) {
         this.domainService = domainService;
         this.repository = repository;
@@ -29,12 +29,12 @@ public class ExecutionMonitorService {
     /**
      * 开始监控任务
      */
-    public ExecutionId startMonitoring(String executionName, String bizKey, String paramsJson, int maxRetry) {
-        ExecutionName name = ExecutionName.of(executionName);
+    public ExecutionId startMonitoring(String name, String bizKey, String paramsJson, int maxRetry) {
+        ExecutionName executionName = ExecutionName.of(name);
         BizKey key = BizKey.of(bizKey);
         SerializedParams params = SerializedParams.of(paramsJson);
 
-        ExecutionRecord execution = domainService.startExecution(name, key, params, maxRetry);
+        ExecutionRecord execution = domainService.startExecution(executionName, key, params, maxRetry);
         repository.save(execution);
 
         return execution.getExecutionId();

@@ -160,7 +160,7 @@ public class ExecutionLogPO {
      */
     public ExecutionRecord toDomain() {
         ExecutionId executionId = new ExecutionId(this.executionId);
-        ExecutionName executionName = new ExecutionName(this.executionName);
+        ExecutionName name = new ExecutionName(this.executionName);
         BizKey bizKey = this.bizKey != null ? new BizKey(this.bizKey) : BizKey.empty();
         SerializedParams params = SerializedParams.of(this.paramsJson);
         ExecutionStatus status = ExecutionStatus.valueOf(this.status);
@@ -172,7 +172,7 @@ public class ExecutionLogPO {
 
         return ExecutionRecord.builder()
                 .executionId(executionId)
-                .executionName(executionName)
+                .executionName(name)
                 .bizKey(bizKey)
                 .params(params)
                 .status(status)
