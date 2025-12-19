@@ -18,12 +18,12 @@ public interface ExecutionLogMapper {
     /**
      * 插入执行记录
      */
-    @Insert("INSERT INTO execution_log (execution_id, execution_name, biz_key, params_json, params_size_bytes, " +
-            "status, error_message, exception_type, stack_trace, start_time, end_time, retry_count, max_retry, " +
-            "heartbeat_interval_seconds, created_at, updated_at) " +
-            "VALUES (#{executionId}, #{executionName}, #{bizKey}, #{paramsJson}, #{paramsSizeBytes}, " +
-            "#{status}, #{errorMessage}, #{exceptionType}, #{stackTrace}, #{startTime}, #{endTime}, #{retryCount}, #{maxRetry}, " +
-            "#{heartbeatIntervalSeconds}, #{createdAt}, #{updatedAt})")
+    @Insert("INSERT INTO execution_log (execution_id, execution_name, biz_key, method_metadata_id, params_json, " +
+            "status, error_message, exception_type, stack_trace, start_time, end_time, retry_count, max_retry, next_retry_time, " +
+            "created_at, updated_at) " +
+            "VALUES (#{executionId}, #{executionName}, #{bizKey}, #{methodMetadataId}, #{paramsJson}, " +
+            "#{status}, #{errorMessage}, #{exceptionType}, #{stackTrace}, #{startTime}, #{endTime}, #{retryCount}, #{maxRetry}, #{nextRetryTime}, " +
+            "#{createdAt}, #{updatedAt})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(ExecutionLogPO executionLog);
 
@@ -31,10 +31,9 @@ public interface ExecutionLogMapper {
      * 根据执行ID更新
      */
     @Update("UPDATE execution_log SET execution_name=#{executionName}, biz_key=#{bizKey}, " +
-            "params_json=#{paramsJson}, params_size_bytes=#{paramsSizeBytes}, status=#{status}, " +
+            "method_metadata_id=#{methodMetadataId}, params_json=#{paramsJson}, status=#{status}, " +
             "error_message=#{errorMessage}, exception_type=#{exceptionType}, stack_trace=#{stackTrace}, start_time=#{startTime}, " +
-            "end_time=#{endTime}, retry_count=#{retryCount}, max_retry=#{maxRetry}, " +
-            "heartbeat_interval_seconds=#{heartbeatIntervalSeconds}, " +
+            "end_time=#{endTime}, retry_count=#{retryCount}, max_retry=#{maxRetry}, next_retry_time=#{nextRetryTime}, " +
             "updated_at=#{updatedAt} WHERE execution_id=#{executionId}")
     int updateByExecutionId(ExecutionLogPO executionLog);
 
@@ -72,13 +71,13 @@ public interface ExecutionLogMapper {
      * 批量插入执行记录
      */
     @Insert("<script>" +
-            "INSERT INTO execution_log (execution_id, execution_name, biz_key, params_json, params_size_bytes, " +
-            "status, error_message, exception_type, stack_trace, start_time, end_time, retry_count, max_retry, " +
-            "heartbeat_interval_seconds, created_at, updated_at) VALUES " +
+            "INSERT INTO execution_log (execution_id, execution_name, biz_key, method_metadata_id, params_json, " +
+            "status, error_message, exception_type, stack_trace, start_time, end_time, retry_count, max_retry, next_retry_time, " +
+            "created_at, updated_at) VALUES " +
             "<foreach collection='list' item='item' separator=','>" +
-            "(#{item.executionId}, #{item.executionName}, #{item.bizKey}, #{item.paramsJson}, #{item.paramsSizeBytes}, " +
+            "(#{item.executionId}, #{item.executionName}, #{item.bizKey}, #{item.methodMetadataId}, #{item.paramsJson}, " +
             "#{item.status}, #{item.errorMessage}, #{item.exceptionType}, #{item.stackTrace}, #{item.startTime}, " +
-            "#{item.endTime}, #{item.retryCount}, #{item.maxRetry}, #{item.heartbeatIntervalSeconds}, " +
+            "#{item.endTime}, #{item.retryCount}, #{item.maxRetry}, #{item.nextRetryTime}, " +
             "#{item.createdAt}, #{item.updatedAt})" +
             "</foreach>" +
             "</script>")
@@ -117,6 +116,17 @@ public interface ExecutionLogMapper {
             "AND retry_count < max_retry " +
             "ORDER BY created_at DESC")
     List<ExecutionLogPO> selectExecutionsForRetry();
+
+    /**
+     * 查询已到达重试时间的执行记录
+     * 状态为 AWAITING_RETRY 且 next_retry_time <= currentTime
+     */
+    @Select("SELECT * FROM execution_log " +
+            "WHERE status = 'AWAITING_RETRY' " +
+            "AND (next_retry_time IS NULL OR next_retry_time <= #{currentTime}) " +
+            "ORDER BY next_retry_time ASC, created_at ASC " +
+            "LIMIT 1000")
+    List<ExecutionLogPO> selectReadyForRetry(@Param("currentTime") LocalDateTime currentTime);
 
     /**
      * 查询心跳超时的运行中执行记录

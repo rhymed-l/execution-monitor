@@ -1,5 +1,6 @@
 package cn.rhymed.execution.monitor.interfaces.annotation;
 
+import cn.rhymed.execution.monitor.common.enums.AlertType;
 import cn.rhymed.execution.monitor.common.enums.SerializationMode;
 
 import java.lang.annotation.*;
@@ -65,4 +66,20 @@ public @interface Monitor {
      * 默认值取自全局配置 execution.monitor.retry.max-retry
      */
     int maxRetry() default -1;
+
+    /**
+     * 告警类型(可选)
+     * 指定使用哪些告警服务，支持多选
+     * DEFAULT: 使用所有已启用的告警服务(默认)
+     * DINGTALK: 仅使用钉钉告警
+     * FEISHU: 仅使用飞书告警
+     * NONE: 禁用告警
+     * <p>
+     * 示例:
+     * - alertTypes = {AlertType.DEFAULT} : 使用所有已启用的告警
+     * - alertTypes = {AlertType.FEISHU} : 仅使用飞书告警
+     * - alertTypes = {AlertType.DINGTALK, AlertType.FEISHU} : 同时使用钉钉和飞书告警
+     * - alertTypes = {AlertType.NONE} : 禁用告警
+     */
+    AlertType[] alertTypes() default {AlertType.DEFAULT};
 }

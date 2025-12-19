@@ -42,6 +42,13 @@ public class ExecutionLogPO {
     private String bizKey;
 
     /**
+     * 方法元信息ID
+     * 关联 execution_method_metadata 表的主键
+     * 用于重试时获取方法调用信息
+     */
+    private Long methodMetadataId;
+
+    /**
      * 参数JSON
      * 以JSON格式存储的方法调用参数
      * 用于重试时恢复方法调用
@@ -49,15 +56,8 @@ public class ExecutionLogPO {
     private String paramsJson;
 
     /**
-     * 参数大小(字节)
-     * JSON参数以UTF-8编码后的字节数
-     * 用于判断是否超过存储限制
-     */
-    private Integer paramsSizeBytes;
-
-    /**
      * 执行状态
-     * 枚举值: RUNNING/SUCCESS/FAILED/RETRY/INTERRUPTED/HEARTBEAT_TIMEOUT
+     * 枚举值: RUNNING/SUCCESS/FAILED/RETRYABLE_FAILED/AWAITING_RETRY/INTERRUPTED/HEARTBEAT_TIMEOUT
      */
     private String status;
 
@@ -108,11 +108,10 @@ public class ExecutionLogPO {
     private Integer maxRetry;
 
     /**
-     * 心跳间隔(秒)
-     * 长时间运行执行的心跳检测间隔
-     * null表示未启用心跳监控
+     * 下次重试时间
+     * 任务标记为 AWAITING_RETRY 状态时计算，调度器只处理到达此时间的任务
      */
-    private Integer heartbeatIntervalSeconds;
+    private LocalDateTime nextRetryTime;
 
     /**
      * 创建时间
@@ -135,7 +134,6 @@ public class ExecutionLogPO {
         po.setExecutionName(execution.getExecutionName().getValue());
         po.setBizKey(execution.getBizKey().isPresent() ? execution.getBizKey().getValue() : null);
         po.setParamsJson(execution.getParams().getJsonData());
-        po.setParamsSizeBytes(execution.getParams().getSizeBytes());
         po.setStatus(execution.getStatus().name());
 
         if (execution.getErrorInfo() != null) {
@@ -148,7 +146,7 @@ public class ExecutionLogPO {
         po.setEndTime(execution.getEndTime());
         po.setRetryCount(execution.getRetryCount());
         po.setMaxRetry(execution.getMaxRetry());
-        po.setHeartbeatIntervalSeconds(execution.getHeartbeatIntervalSeconds());
+        po.setNextRetryTime(execution.getNextRetryTime());
         po.setCreatedAt(LocalDateTime.now());
         po.setUpdatedAt(LocalDateTime.now());
 
@@ -181,7 +179,6 @@ public class ExecutionLogPO {
                 .endTime(this.endTime)
                 .retryCount(this.retryCount)
                 .maxRetry(this.maxRetry)
-                .heartbeatIntervalSeconds(this.heartbeatIntervalSeconds)
                 .build();
     }
 }

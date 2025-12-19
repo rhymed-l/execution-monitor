@@ -117,7 +117,18 @@ public class MemoryExecutionRecordRepository implements ExecutionRecordRepositor
     @Override
     public List<ExecutionRecord> findExecutionsForRetry() {
         return storage.values().stream()
-                .filter(exec -> exec.getStatus() == ExecutionStatus.RETRY)
+                .filter(exec -> exec.getStatus() == ExecutionStatus.AWAITING_RETRY)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ExecutionRecord> findReadyForRetry(LocalDateTime currentTime) {
+        if (currentTime == null) {
+            return CollUtil.newArrayList();
+        }
+        return storage.values().stream()
+                .filter(exec -> exec.getStatus() == ExecutionStatus.AWAITING_RETRY)
+                .filter(exec -> exec.getNextRetryTime() == null || !exec.getNextRetryTime().isAfter(currentTime))
                 .collect(Collectors.toList());
     }
 

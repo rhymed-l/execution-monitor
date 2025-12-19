@@ -19,9 +19,14 @@ public enum ExecutionStatus {
     SUCCESS("成功"),
 
     /**
-     * 失败
+     * 失败（最终失败，不可重试）
      */
     FAILED("失败"),
+
+    /**
+     * 可重试的失败（还有重试机会）
+     */
+    RETRYABLE_FAILED("可重试失败"),
 
     /**
      * 中断
@@ -34,9 +39,10 @@ public enum ExecutionStatus {
     HEARTBEAT_TIMEOUT("心跳超时"),
 
     /**
-     * 待重试
+     * 等待重试
+     * 任务已失败但还有重试机会，等待调度器在指定时间执行重试
      */
-    RETRY("待重试");
+    AWAITING_RETRY("等待重试");
 
     private final String description;
 
@@ -50,9 +56,10 @@ public enum ExecutionStatus {
 
     /**
      * 是否为终态
+     * SUCCESS 是真正的终态，FAILED 可以转换为 AWAITING_RETRY
      */
     public boolean isTerminal() {
-        return this == SUCCESS || this == FAILED;
+        return this == SUCCESS;
     }
 
     /**
@@ -71,16 +78,25 @@ public enum ExecutionStatus {
     public boolean canTransitionTo(ExecutionStatus newStatus) {
         switch (this) {
             case RUNNING:
-                return newStatus == SUCCESS || newStatus == FAILED
+                // RUNNING 可以转换为成功、最终失败、可重试失败、中断、心跳超时
+                return newStatus == SUCCESS || newStatus == FAILED || newStatus == RETRYABLE_FAILED
                         || newStatus == INTERRUPTED || newStatus == HEARTBEAT_TIMEOUT;
             case INTERRUPTED:
             case HEARTBEAT_TIMEOUT:
-                return newStatus == RETRY || newStatus == FAILED;
-            case RETRY:
-                return newStatus == RUNNING || newStatus == FAILED;
+                // 中断和心跳超时可以转换为等待重试或最终失败
+                return newStatus == AWAITING_RETRY || newStatus == FAILED;
+            case AWAITING_RETRY:
+                // 等待重试可以转换为执行中、最终失败、可重试失败
+                return newStatus == RUNNING || newStatus == FAILED || newStatus == RETRYABLE_FAILED;
+            case RETRYABLE_FAILED:
+                // 可重试失败可以转换为等待重试或最终失败
+                return newStatus == AWAITING_RETRY || newStatus == FAILED;
             case FAILED:
+                // 最终失败是终态，不允许转换（除非手动恢复）
+                return false;
             case SUCCESS:
-                return false; // 终态不可转换
+                // 成功是终态，不允许转换
+                return false;
             default:
                 return false;
         }

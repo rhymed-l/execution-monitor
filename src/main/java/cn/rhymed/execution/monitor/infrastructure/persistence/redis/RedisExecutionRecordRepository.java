@@ -165,6 +165,22 @@ public class RedisExecutionRecordRepository implements ExecutionRecordRepository
     }
 
     @Override
+    public List<ExecutionRecord> findReadyForRetry(LocalDateTime currentTime) {
+        if (currentTime == null) {
+            return new ArrayList<>();
+        }
+
+        // 查询状态为 AWAITING_RETRY 的任务
+        List<ExecutionRecord> awaitingRetryExecutions = findByStatus(ExecutionStatus.AWAITING_RETRY);
+
+        // 过滤出已到达重试时间的任务
+        return awaitingRetryExecutions.stream()
+                .filter(execution -> execution.getNextRetryTime() == null ||
+                        !execution.getNextRetryTime().isAfter(currentTime))
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public void deleteById(ExecutionId executionId) {
         // 先获取任务信息用于清理索引
         Optional<ExecutionRecord> execution = findById(executionId);

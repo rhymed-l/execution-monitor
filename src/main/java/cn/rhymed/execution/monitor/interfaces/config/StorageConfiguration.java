@@ -1,9 +1,12 @@
 package cn.rhymed.execution.monitor.interfaces.config;
 
+import cn.rhymed.execution.monitor.domain.repository.ExecutionLockRepository;
 import cn.rhymed.execution.monitor.domain.repository.ExecutionRecordRepository;
 import cn.rhymed.execution.monitor.domain.repository.HeartbeatStorage;
+import cn.rhymed.execution.monitor.infrastructure.persistence.database.DatabaseExecutionLockRepository;
 import cn.rhymed.execution.monitor.infrastructure.persistence.database.DatabaseExecutionRecordRepository;
 import cn.rhymed.execution.monitor.infrastructure.persistence.database.DatabaseHeartbeatStorage;
+import cn.rhymed.execution.monitor.infrastructure.persistence.database.mapper.ExecutionLockMapper;
 import cn.rhymed.execution.monitor.infrastructure.persistence.database.mapper.ExecutionLogMapper;
 import cn.rhymed.execution.monitor.infrastructure.persistence.database.mapper.HeartbeatMapper;
 import cn.rhymed.execution.monitor.infrastructure.persistence.redis.RedisExecutionRecordRepository;
@@ -76,13 +79,26 @@ public class StorageConfiguration {
     public static class DatabaseStorageConfiguration {
 
         /**
+         * 方法元信息仓储
+         */
+        @Bean
+        @ConditionalOnMissingBean
+        public cn.rhymed.execution.monitor.infrastructure.persistence.MethodMetadataRepositoryImpl
+        methodMetadataRepository(cn.rhymed.execution.monitor.infrastructure.persistence.database.mapper.MethodMetadataMapper mapper) {
+            log.info("注册方法元信息仓储");
+            return new cn.rhymed.execution.monitor.infrastructure.persistence.MethodMetadataRepositoryImpl(mapper);
+        }
+
+        /**
          * 数据库存储仓储
          */
         @Bean
         @ConditionalOnMissingBean
-        public ExecutionRecordRepository databaseExecutionRecordRepository(ExecutionLogMapper mapper) {
+        public ExecutionRecordRepository databaseExecutionRecordRepository(
+                ExecutionLogMapper mapper,
+                cn.rhymed.execution.monitor.infrastructure.persistence.MethodMetadataRepositoryImpl metadataRepository) {
             log.info("使用数据库存储实现");
-            return new DatabaseExecutionRecordRepository(mapper);
+            return new DatabaseExecutionRecordRepository(mapper, metadataRepository);
         }
 
         /**
@@ -93,6 +109,29 @@ public class StorageConfiguration {
         public HeartbeatStorage databaseHeartbeatStorage(HeartbeatMapper mapper) {
             log.info("使用数据库心跳存储");
             return new DatabaseHeartbeatStorage(mapper);
+        }
+
+        /**
+         * 数据库执行锁仓储
+         */
+        @Bean
+        @ConditionalOnMissingBean
+        public ExecutionLockRepository databaseExecutionLockRepository(ExecutionLockMapper mapper) {
+            log.info("使用数据库执行锁仓储");
+            return new DatabaseExecutionLockRepository(mapper);
+        }
+
+        /**
+         * 锁清理调度器
+         * 定期清理过期的数据库锁
+         */
+        @Bean
+        @ConditionalOnMissingBean
+        @ConditionalOnProperty(name = "execution.monitor.distributed-lock.enabled", havingValue = "true")
+        public cn.rhymed.execution.monitor.infrastructure.scheduler.LockCleanupScheduler lockCleanupScheduler(
+                ExecutionLockRepository lockRepository) {
+            log.info("启用锁清理调度器");
+            return new cn.rhymed.execution.monitor.infrastructure.scheduler.LockCleanupScheduler(lockRepository);
         }
     }
 }

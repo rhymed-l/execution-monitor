@@ -1,5 +1,6 @@
 package cn.rhymed.execution.monitor.domain.aggregate;
 
+import cn.rhymed.execution.monitor.common.enums.AlertType;
 import cn.rhymed.execution.monitor.common.enums.ExecutionStatus;
 import cn.rhymed.execution.monitor.domain.model.*;
 import lombok.Builder;
@@ -9,6 +10,10 @@ import lombok.ToString;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * 执行记录聚合根
@@ -52,6 +57,15 @@ public class ExecutionRecord implements Serializable {
      */
     @Builder.Default
     private final SerializedParams params = SerializedParams.empty();
+
+    /**
+     * 方法元信息
+     * 包含方法调用所需的完整信息：Bean名称、类名、方法签名
+     * 用于重试时自动恢复方法调用
+     */
+    @Builder.Default
+    private final MethodMetadata methodMetadata = MethodMetadata.empty();
+
     /**
      * 执行开始时间
      * 记录执行首次启动的时间点,不可变
@@ -102,21 +116,50 @@ public class ExecutionRecord implements Serializable {
      * 为null表示未启用心跳监控
      */
     private Integer heartbeatIntervalSeconds;
+    /**
+     * 告警类型集合
+     * 指定该执行记录使用哪些告警服务
+     * DEFAULT: 使用所有已启用的告警服务
+     * 具体告警类型: 仅使用指定的告警服务
+     * NONE: 禁用告警
+     * 默认为 DEFAULT
+     */
+    @Builder.Default
+    private final Set<AlertType> alertTypes = new HashSet<>(Collections.singletonList(AlertType.DEFAULT));
+    /**
+     * 下次重试时间
+     * 任务标记为 AWAITING_RETRY 状态时计算，用于告知用户预计重试时间
+     * 调度器只会处理到达或超过此时间的任务
+     */
+    private LocalDateTime nextRetryTime;
 
     /**
-     * 创建新的执行记录
+     * 创建新的执行记录（带告警类型）
      */
-    public static ExecutionRecord create(ExecutionName executionName, BizKey bizKey, SerializedParams params, int maxRetry) {
+    public static ExecutionRecord create(ExecutionName executionName, BizKey bizKey, SerializedParams params,
+                                         MethodMetadata methodMetadata, int maxRetry, Set<AlertType> alertTypes) {
         return ExecutionRecord.builder()
                 .executionId(ExecutionId.generate())
                 .executionName(executionName)
                 .bizKey(bizKey)
                 .params(params)
+                .methodMetadata(methodMetadata != null ? methodMetadata : MethodMetadata.empty())
                 .status(ExecutionStatus.RUNNING)
                 .startTime(LocalDateTime.now())
                 .retryCount(0)
                 .maxRetry(maxRetry)
+                .alertTypes(alertTypes != null && !alertTypes.isEmpty() ? alertTypes : new HashSet<>(Collections.singletonList(AlertType.DEFAULT)))
                 .build();
+    }
+
+    /**
+     * 创建新的执行记录（使用默认告警类型）
+     * 向后兼容的重载方法
+     */
+    public static ExecutionRecord create(ExecutionName executionName, BizKey bizKey, SerializedParams params,
+                                         MethodMetadata methodMetadata, int maxRetry) {
+        return create(executionName, bizKey, params, methodMetadata, maxRetry,
+                new HashSet<>(Collections.singletonList(AlertType.DEFAULT)));
     }
 
     /**
@@ -130,7 +173,7 @@ public class ExecutionRecord implements Serializable {
     }
 
     /**
-     * 执行失败
+     * 执行失败（最终失败，不可重试）
      */
     public void fail(ErrorInfo errorInfo) {
         if (errorInfo == null) {
@@ -139,6 +182,22 @@ public class ExecutionRecord implements Serializable {
         validateTransition(ExecutionStatus.FAILED);
         this.status = ExecutionStatus.FAILED;
         this.endTime = LocalDateTime.now();
+        this.errorInfo = errorInfo;
+    }
+
+    /**
+     * 可重试的失败（还有重试机会）
+     * 与fail()的区别：
+     * - fail() 表示最终失败，不再重试
+     * - retryableFail() 表示暂时失败，还有重试机会
+     */
+    public void retryableFail(ErrorInfo errorInfo) {
+        if (errorInfo == null) {
+            throw new IllegalArgumentException("errorInfo不能为空");
+        }
+        validateTransition(ExecutionStatus.RETRYABLE_FAILED);
+        this.status = ExecutionStatus.RETRYABLE_FAILED;
+        // 注意：可重试失败不设置 endTime，因为任务还没有真正结束
         this.errorInfo = errorInfo;
     }
 
@@ -161,20 +220,57 @@ public class ExecutionRecord implements Serializable {
     }
 
     /**
-     * 标记为重试状态
+     * 标记为等待重试状态，并计算下次重试时间
+     * 使用指数退避策略：1分钟 → 5分钟 → 15分钟 → 30分钟
      */
     public void markForRetry() {
-        validateTransition(ExecutionStatus.RETRY);
-        this.status = ExecutionStatus.RETRY;
+        validateTransition(ExecutionStatus.AWAITING_RETRY);
+        this.status = ExecutionStatus.AWAITING_RETRY;
+        this.nextRetryTime = calculateNextRetryTime();
+    }
+
+    /**
+     * 计算下次重试时间
+     * 指数退避策略：
+     * - retryCount=0 (首次失败): 1分钟后
+     * - retryCount=1 (第1次重试失败): 5分钟后
+     * - retryCount=2 (第2次重试失败): 15分钟后
+     * - retryCount=3+ (第3次及以后): 30分钟后
+     */
+    private LocalDateTime calculateNextRetryTime() {
+        long delayMinutes;
+        switch (this.retryCount) {
+            case 0:
+                delayMinutes = 1;  // 首次失败，1分钟后重试
+                break;
+            case 1:
+                delayMinutes = 5;  // 第1次重试失败，5分钟后重试
+                break;
+            case 2:
+                delayMinutes = 15;  // 第2次重试失败，15分钟后重试
+                break;
+            default:
+                delayMinutes = 30;  // 第3次及以后，30分钟后重试
+                break;
+        }
+        return LocalDateTime.now().plusMinutes(delayMinutes);
+    }
+
+    /**
+     * 递增重试次数
+     * 在开始执行重试前调用
+     */
+    public void incrementRetryCount() {
         this.retryCount++;
     }
 
     /**
      * 重新开始执行(用于重试)
+     * 保留原有的告警类型配置，但不继承 errorInfo（每次重试记录新的异常）
      */
     public ExecutionRecord restart() {
-        if (this.status != ExecutionStatus.RETRY) {
-            throw new IllegalStateException("只有RETRY状态的执行才能重新开始");
+        if (this.status != ExecutionStatus.AWAITING_RETRY) {
+            throw new IllegalStateException("只有AWAITING_RETRY状态的执行才能重新开始");
         }
 
         return ExecutionRecord.builder()
@@ -182,11 +278,13 @@ public class ExecutionRecord implements Serializable {
                 .executionName(this.executionName)
                 .bizKey(this.bizKey)
                 .params(this.params)
+                .methodMetadata(this.methodMetadata)
                 .status(ExecutionStatus.RUNNING)
                 .startTime(LocalDateTime.now())
                 .retryCount(this.retryCount)
                 .maxRetry(this.maxRetry)
                 .heartbeatIntervalSeconds(this.heartbeatIntervalSeconds)
+                .alertTypes(this.alertTypes)  // 继承告警类型配置
                 .build();
     }
 

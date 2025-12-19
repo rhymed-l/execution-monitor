@@ -1,7 +1,9 @@
 package cn.rhymed.execution.monitor.infrastructure.util;
 
 import cn.hutool.core.util.ReflectUtil;
+import cn.rhymed.execution.monitor.domain.model.MethodMetadata;
 import cn.rhymed.execution.monitor.domain.model.SerializedParams;
+import cn.rhymed.execution.monitor.infrastructure.context.RetryContext;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Method;
@@ -144,6 +146,68 @@ public class ReflectionInvoker {
         } catch (Exception e) {
             log.error("Hutool反射调用失败: {}.{}", targetBean.getClass().getName(), methodName, e);
             throw new RuntimeException("方法调用失败", e);
+        }
+    }
+
+    /**
+     * 根据方法元信息和参数调用方法（用于自动重试）
+     *
+     * @param metadata 方法元信息
+     * @param params   序列化的参数
+     * @return 方法返回值
+     */
+    public static Object invokeByMetadata(MethodMetadata metadata, SerializedParams params) {
+        if (metadata == null || metadata.isEmpty()) {
+            throw new IllegalArgumentException("方法元信息不能为空");
+        }
+
+        try {
+            // 1. 从 Spring 容器获取 Bean
+            Object targetBean = BeanResolver.getBeanByMetadata(metadata);
+            if (targetBean == null) {
+                throw new RuntimeException("无法获取目标 Bean: " + metadata.getBeanName());
+            }
+
+            // 2. 反序列化参数
+            Object[] args = params != null && !params.isEmpty()
+                    ? params.deserialize()
+                    : new Object[0];
+
+            // 3. 获取方法
+            String methodName = metadata.getMethodName();
+            Class<?>[] paramTypes = metadata.getParameterTypes();
+
+            // 验证参数数量
+            if (args.length != paramTypes.length) {
+                throw new IllegalArgumentException(
+                        String.format("参数数量不匹配: 期望 %d 个参数，实际 %d 个", paramTypes.length, args.length)
+                );
+            }
+
+            Method method = targetBean.getClass().getMethod(methodName, paramTypes);
+            method.setAccessible(true);
+
+            // 4. 调用方法（标记重试上下文，避免AOP再次拦截）
+            log.debug("调用方法: {}.{}，参数: {}", targetBean.getClass().getName(), methodName,
+                    args.length > 0 ? args[0] : "无参数");
+
+            try {
+                // 标记当前线程正在执行重试
+                RetryContext.markRetrying();
+
+                Object result = method.invoke(targetBean, args);
+
+                log.info("自动重试调用成功: {}.{}", metadata.getTargetClass(), methodName);
+                return result;
+
+            } finally {
+                // 清除重试标记（必须在 finally 中执行）
+                RetryContext.clearRetrying();
+            }
+
+        } catch (Exception e) {
+            log.error("自动重试调用失败: {}", metadata, e);
+            throw new RuntimeException("方法调用失败: " + metadata.getMethodName(), e);
         }
     }
 }

@@ -166,7 +166,7 @@ spring:
 </dependency>
 ```
 
-2. 创建数据表（参考 `db/migration/V1__init_task_monitor.sql`）
+2. 创建数据表（参考 `db/migration/init_task_monitor.sql`）
 
 3. 配置数据源：
 

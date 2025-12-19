@@ -3,9 +3,13 @@ package cn.rhymed.execution.monitor.infrastructure.aop;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import cn.rhymed.execution.monitor.application.service.MonitorService;
+import cn.rhymed.execution.monitor.common.enums.AlertType;
 import cn.rhymed.execution.monitor.common.enums.SerializationMode;
 import cn.rhymed.execution.monitor.domain.model.ExecutionId;
+import cn.rhymed.execution.monitor.domain.model.MethodMetadata;
 import cn.rhymed.execution.monitor.domain.service.SerializationDecisionService;
+import cn.rhymed.execution.monitor.infrastructure.context.RetryContext;
+import cn.rhymed.execution.monitor.infrastructure.util.BeanResolver;
 import cn.rhymed.execution.monitor.infrastructure.util.BizKeyExpressionParser;
 import cn.rhymed.execution.monitor.interfaces.annotation.Monitor;
 import cn.rhymed.execution.monitor.interfaces.config.MonitorProperties;
@@ -16,6 +20,10 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * 任务监控切面
@@ -42,6 +50,12 @@ public class MonitorAspect {
 
     @Around("@annotation(cn.rhymed.execution.monitor.interfaces.annotation.Monitor)")
     public Object around(ProceedingJoinPoint joinPoint) throws Throwable {
+        // 如果当前是重试调用，跳过监控，直接执行方法
+        if (RetryContext.isRetrying()) {
+            log.debug("检测到重试上下文，跳过AOP监控");
+            return joinPoint.proceed();
+        }
+
         // 获取注解信息
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         Method method = signature.getMethod();
@@ -52,9 +66,13 @@ public class MonitorAspect {
         String bizKey = extractBizKey(annotation.bizKey(), method, joinPoint.getArgs());
         String paramsJson = serializeParams(annotation.serializeParams(), joinPoint.getArgs());
         int maxRetry = resolveMaxRetry(annotation.maxRetry());
+        Set<AlertType> alertTypes = resolveAlertTypes(annotation.alertTypes());
+
+        // 提取方法元信息（用于自动重试）
+        MethodMetadata methodMetadata = BeanResolver.extractMetadata(joinPoint.getTarget(), method);
 
         // 开始监控
-        ExecutionId executionId = MonitorService.startMonitoring(name, bizKey, paramsJson, maxRetry);
+        ExecutionId executionId = MonitorService.startMonitoring(name, bizKey, paramsJson, methodMetadata, maxRetry, alertTypes);
 
         // 处理心跳（使用全局配置）
         if (properties.getHeartbeat().isEnabled()) {
@@ -159,6 +177,18 @@ public class MonitorAspect {
             return annotationMaxRetry;
         }
         return properties.getRetry().getMaxRetry();
+    }
+
+    /**
+     * 解析告警类型
+     * 从注解中提取告警类型配置
+     */
+    private Set<AlertType> resolveAlertTypes(AlertType[] annotationAlertTypes) {
+        if (annotationAlertTypes == null || annotationAlertTypes.length == 0) {
+            // 默认使用所有启用的告警服务
+            return new HashSet<>(Collections.singletonList(AlertType.DEFAULT));
+        }
+        return new HashSet<>(Arrays.asList(annotationAlertTypes));
     }
 
 }

@@ -1,11 +1,11 @@
 package cn.rhymed.execution.monitor.domain.service;
 
+import cn.rhymed.execution.monitor.common.enums.AlertType;
 import cn.rhymed.execution.monitor.domain.aggregate.ExecutionRecord;
 import cn.rhymed.execution.monitor.domain.aggregate.RecoveryPolicy;
-import cn.rhymed.execution.monitor.domain.model.BizKey;
-import cn.rhymed.execution.monitor.domain.model.ErrorInfo;
-import cn.rhymed.execution.monitor.domain.model.ExecutionName;
-import cn.rhymed.execution.monitor.domain.model.SerializedParams;
+import cn.rhymed.execution.monitor.domain.model.*;
+
+import java.util.Set;
 
 /**
  * 任务执行领域服务
@@ -19,8 +19,9 @@ public class ExecutionRecordDomainService {
     /**
      * 开始任务
      */
-    public ExecutionRecord startExecution(ExecutionName executionName, BizKey bizKey, SerializedParams params, int maxRetry) {
-        return ExecutionRecord.create(executionName, bizKey, params, maxRetry);
+    public ExecutionRecord startExecution(ExecutionName executionName, BizKey bizKey, SerializedParams params,
+                                          MethodMetadata methodMetadata, int maxRetry, Set<AlertType> alertTypes) {
+        return ExecutionRecord.create(executionName, bizKey, params, methodMetadata, maxRetry, alertTypes);
     }
 
     /**

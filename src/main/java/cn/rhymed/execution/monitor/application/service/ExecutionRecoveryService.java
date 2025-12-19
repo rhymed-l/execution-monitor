@@ -57,7 +57,7 @@ public class ExecutionRecoveryService implements ApplicationRunner {
                 ExecutionStatus.INTERRUPTED,
                 ExecutionStatus.HEARTBEAT_TIMEOUT,
                 ExecutionStatus.FAILED,
-                ExecutionStatus.RETRY
+                ExecutionStatus.AWAITING_RETRY
         );
 
         return repository.findRecoverableExecutions(recoverableStatuses);

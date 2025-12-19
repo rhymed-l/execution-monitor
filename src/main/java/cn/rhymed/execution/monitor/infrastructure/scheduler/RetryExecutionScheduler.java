@@ -6,49 +6,47 @@ import org.springframework.scheduling.annotation.Scheduled;
 
 /**
  * 重试任务调度器
- * 定期检查并执行重试队列中的任务
+ * 定期检查并执行重试队列中的任务，每次固定处理 100 条
  *
  * @author rhymed.liu[rhymed.liu@anker-in.com]
  * @since 2025-12-10 11:44
  */
 @Slf4j
 public class RetryExecutionScheduler {
-    private static final int DEFAULT_BATCH_SIZE = 10;
 
     private final ExecutionRetryExecutor retryExecutor;
-    private final int batchSize;
 
     public RetryExecutionScheduler(ExecutionRetryExecutor retryExecutor) {
-        this(retryExecutor, DEFAULT_BATCH_SIZE);
-    }
-
-    public RetryExecutionScheduler(ExecutionRetryExecutor retryExecutor, int batchSize) {
         this.retryExecutor = retryExecutor;
-        this.batchSize = batchSize;
     }
 
     /**
      * 定期执行重试任务
-     * 默认每分钟执行一次
+     * 默认每 5 分钟执行一次，可通过配置调整
      */
-    @Scheduled(fixedDelayString = "${execution.monitor.retry.check-interval-seconds:60}000")
+    @Scheduled(
+            fixedDelayString = "${execution.monitor.retry.scheduled-interval-ms:300000}",
+            initialDelayString = "${execution.monitor.retry.scheduled-initial-delay-ms:60000}"
+    )
     public void processRetryQueue() {
-        try {
-            long queueSize = retryExecutor.countExecutionsInRetryQueue();
+        log.debug("定时扫描待重试任务开始...");
 
-            if (queueSize == 0) {
-                log.debug("重试队列为空");
-                return;
+        try {
+            // 调用统一的批量处理方法（固定 100 条）
+            int executed = retryExecutor.processBatchRetry();
+
+            if (executed > 0) {
+                log.info("定时重试完成，成功处理 {} 个任务", executed);
             }
 
-            log.info("开始处理重试队列, 队列大小: {}", queueSize);
-
-            int executed = retryExecutor.executeBatchRetry(batchSize);
-
-            log.info("重试任务处理完成, 执行: {}, 批次大小: {}", executed, batchSize);
+            // 检查是否还有待处理的任务
+            long remaining = retryExecutor.countExecutionsInRetryQueue();
+            if (remaining > 0) {
+                log.debug("仍有 {} 个任务待重试", remaining);
+            }
 
         } catch (Exception e) {
-            log.error("处理重试队列失败", e);
+            log.error("定时重试调度失败", e);
         }
     }
 

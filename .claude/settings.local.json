@@ -14,7 +14,11 @@
       "Bash(unzip:*)",
       "Bash(powershell -ExecutionPolicy Bypass -File remove_bom.ps1)",
       "Bash(powershell -ExecutionPolicy Bypass -File fix_examples_bom.ps1)",
-      "Bash(del V1__create_task_log_table.sql V2__add_stack_trace_column.sql)"
+      "Bash(del V1__create_task_log_table.sql V2__add_stack_trace_column.sql)",
+      "Bash(find:*)",
+      "Bash(./mvnw.cmd compile:*)",
+      "Bash(mvn compile:*)",
+      "Bash(findstr:*)"
     ]
   }
 }

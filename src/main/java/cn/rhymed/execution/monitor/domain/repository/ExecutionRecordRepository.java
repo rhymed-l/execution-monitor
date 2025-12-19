@@ -72,6 +72,15 @@ public interface ExecutionRecordRepository {
     List<ExecutionRecord> findExecutionsForRetry();
 
     /**
+     * 查找已到达重试时间的任务
+     * 状态为 AWAITING_RETRY 且 nextRetryTime <= currentTime
+     *
+     * @param currentTime 当前时间
+     * @return 准备重试的任务列表
+     */
+    List<ExecutionRecord> findReadyForRetry(LocalDateTime currentTime);
+
+    /**
      * 删除任务执行记录
      */
     void deleteById(ExecutionId executionId);

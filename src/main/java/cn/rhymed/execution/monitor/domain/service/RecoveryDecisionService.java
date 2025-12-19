@@ -25,7 +25,7 @@ public class RecoveryDecisionService {
             ExecutionStatus.INTERRUPTED,
             ExecutionStatus.HEARTBEAT_TIMEOUT,
             ExecutionStatus.FAILED,
-            ExecutionStatus.RETRY
+            ExecutionStatus.AWAITING_RETRY
     ));
 
     /**

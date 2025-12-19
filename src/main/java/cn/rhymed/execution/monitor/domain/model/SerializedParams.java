@@ -1,6 +1,7 @@
 package cn.rhymed.execution.monitor.domain.model;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONUtil;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -8,6 +9,7 @@ import lombok.ToString;
 
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /**
  * 序列化参数值对象
@@ -65,11 +67,23 @@ public class SerializedParams implements Serializable {
 
     /**
      * 反序列化为对象数组
+     * 从 JSON 数组格式反序列化：["arg1", "arg2", ...]
      */
     public Object[] deserialize() {
         if (isEmpty()) {
             return new Object[0];
         }
-        return JSONUtil.toBean(jsonData, Object[].class);
+
+        try {
+            // 解析为 JSON 数组
+            JSONArray jsonArray = JSONUtil.parseArray(jsonData);
+
+            // 转换为 Object 数组
+            List<Object> list = jsonArray.toList(Object.class);
+            return list.toArray(new Object[0]);
+
+        } catch (Exception e) {
+            throw new RuntimeException("参数反序列化失败: " + jsonData, e);
+        }
     }
 }

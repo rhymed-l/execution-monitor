@@ -4,61 +4,239 @@ spring:
   application:
     name: execution-monitor-example
 
+# ========================================
 # 执行监控配置
+# ========================================
 execution:
   monitor:
-    # 启用执行监控
+    # ----------------------------------------
+    # 基础配置
+    # ----------------------------------------
+    # 是否启用执行监控功能
+    # true: 启用监控（默认）, false: 禁用监控
     enabled: true
 
-    # 存储类型: memory（内存）, redis（Redis）, database（数据库）
+    # 存储类型
+    # memory: 内存存储（适用于单实例、测试环境，重启后数据丢失）
+    # redis: Redis存储（适用于分布式部署，支持多实例共享数据）
+    # database: 数据库存储（适用于生产环境，数据持久化）
     storage-type: memory
 
+    # ----------------------------------------
     # 心跳监控配置
+    # ----------------------------------------
     heartbeat:
-      # 启用心跳监控
+      # 是否启用心跳监控
+      # true: 启用（默认）, false: 禁用
       enabled: true
-      # 默认心跳间隔（秒）
+
+      # 任务心跳上报间隔（秒）
+      # 长时间运行的任务会定期上报心跳，证明任务仍在正常执行
+      # 建议值: 60-300秒
       interval-seconds: 60
-      # 健康检查间隔（秒）
+
+      # 系统心跳检查间隔（秒）
+      # 系统定期检查是否有任务心跳超时
+      # 建议设置为 interval-seconds 的一半，以便及时发现超时任务
       check-interval-seconds: 30
-      # 超时阈值（倍数）
+
+      # 心跳超时阈值（倍数）
+      # 超过 interval-seconds * timeout-threshold 秒未收到心跳，则认为任务超时
+      # 例如: interval-seconds=60, timeout-threshold=2, 则120秒未收到心跳视为超时
       timeout-threshold: 2
 
+    # ----------------------------------------
     # 重试配置
+    # ----------------------------------------
     retry:
       # 默认最大重试次数
+      # 当任务执行失败时，系统会自动重试的最大次数
+      # 例如设置为 3，表示任务失败后最多重试 3 次（总共执行 4 次：首次 + 3次重试）
+      # 注意: 可以在 @Monitor 注解中通过 maxRetry 属性覆盖此全局配置
       max-retry: 3
-      # 可重试的异常类型
-      retryable-exceptions:
-        - java.util.concurrent.TimeoutException
-        - java.io.IOException
-        - java.sql.SQLException
-        - org.springframework.dao.DataAccessException
-      # 可忽略的异常类型
-      ignorable-exceptions:
-        - java.lang.IllegalArgumentException
-        - java.lang.NullPointerException
 
+      # 基础重试间隔（秒）
+      # 两次重试之间的基础等待时间
+      # 例如设置为 60，表示重试前至少等待 60 秒
+      # 如果启用了指数退避，实际等待时间会逐次增长
+      base-interval-seconds: 60
+
+      # 是否启用指数退避策略
+      # true: 每次重试的等待时间呈指数增长（如 60s, 120s, 240s...）
+      # false: 每次重试使用固定的等待时间（都是 base-interval-seconds）
+      # 指数退避可以避免频繁重试对系统造成压力，推荐启用
+      exponential-backoff: true
+
+      # 可重试的异常类型（类名包含匹配）
+      # 当抛出这些异常时，任务会被标记为可重试状态
+      # 适用于临时性错误，如网络超时、数据库连接失败等
+      retryable-exceptions:
+        - java.util.concurrent.TimeoutException      # 超时异常
+        - java.io.IOException                         # IO异常
+        - java.sql.SQLException                       # 数据库异常
+        - org.springframework.dao.DataAccessException # Spring数据访问异常
+
+      # 可忽略的异常类型（类名包含匹配）
+      # 当抛出这些异常时，任务会直接标记为失败，不会进行重试
+      # 适用于业务逻辑错误等不应该重试的场景
+      # 例如参数错误、空指针异常等，重试也无法成功
+      ignorable-exceptions:
+        - java.lang.IllegalArgumentException          # 非法参数异常
+        - java.lang.NullPointerException              # 空指针异常
+
+    # ----------------------------------------
     # 恢复配置
+    # ----------------------------------------
     recovery:
-      # 启用自动恢复
+      # 是否启用自动恢复功能
+      # true: 启用自动恢复, false: 禁用自动恢复（默认）
+      # 启用后，系统会在启动时检查未完成的任务并尝试恢复
       enabled: true
-      # 默认恢复策略: AUTO（自动）, ALWAYS（总是）, NEVER（从不）, CUSTOM（自定义）
+
+      # 默认恢复策略
+      # AUTO: 根据任务状态自动决定是否恢复（推荐）
+      # ALWAYS: 总是尝试恢复未完成的任务
+      # NEVER: 从不自动恢复
+      # CUSTOM: 使用自定义恢复处理器
       default-strategy: AUTO
 
+      # 启动时是否立即执行恢复检查
+      # true: 应用启动时立即检查并恢复（默认）
+      # false: 不在启动时检查
+      check-on-startup: true
+
+      # 定期恢复检查间隔（秒）
+      # 0: 不启用定期检查（默认）
+      # >0: 定期检查并恢复未完成的任务
+      check-interval-seconds: 0
+
+    # ----------------------------------------
     # 序列化配置
+    # ----------------------------------------
     serialization:
-      # 最大参数大小（字节）
+      # 是否启用智能序列化
+      # true: 启用（默认）, false: 禁用
+      # 启用后会自动判断参数是否需要序列化保存
+      enabled: true
+
+      # 参数序列化大小限制（字节）
+      # 超过此大小的参数将不会被序列化保存
+      # 默认 10240 字节 (10KB)
+      # 建议根据实际业务场景调整，避免保存过大的参数影响性能
       max-param-size-bytes: 10240
 
+    # ----------------------------------------
     # 清理配置
+    # ----------------------------------------
     cleanup:
-      # 启用定期清理
+      # 是否启用定期清理功能
+      # true: 启用定期清理（推荐生产环境启用）
+      # false: 禁用定期清理（默认）
       enabled: true
-      # 保留天数
+
+      # 执行记录保留天数
+      # 超过此天数的已完成/已失败记录会被自动清理
+      # 建议值: 7-30天
       retention-days: 7
+
       # 清理任务执行时间（cron表达式）
+      # 默认: "0 0 2 * * ?" (每天凌晨2点执行)
+      # 建议在业务低峰期执行清理任务
       schedule-cron: "0 0 2 * * ?"
+
+      # 清理任务执行间隔（秒）
+      # 仅在不使用 cron 表达式时生效
+      # 默认: 86400 秒（1天）
+      interval-seconds: 86400
+
+    # ----------------------------------------
+    # 分布式锁配置
+    # ----------------------------------------
+    distributed-lock:
+      # 是否启用分布式锁
+      # true: 启用（默认，推荐多实例部署时启用）
+      # false: 禁用（仅适用于单实例部署）
+      # 注意: 内存存储模式会自动使用本地锁实现
+      enabled: true
+
+      # 锁超时时间（秒）
+      # 防止实例宕机后锁永远不释放
+      # 建议设置为任务最大执行时间的 2-3 倍
+      timeout-seconds: 300
+
+    # ----------------------------------------
+    # 告警配置
+    # ----------------------------------------
+    alert:
+      # 钉钉告警配置
+      dingtalk:
+        # 是否启用钉钉告警
+        # true: 启用, false: 禁用（默认）
+        enabled: false
+
+        # 钉钉机器人 Webhook URL
+        # 格式: https://oapi.dingtalk.com/robot/send?access_token=xxx
+        # 获取方式: 钉钉群 -> 群设置 -> 智能群助手 -> 添加机器人 -> 自定义
+        webhook-url: https://oapi.dingtalk.com/robot/send?access_token=your-token
+
+        # 钉钉机器人加签密钥（可选）
+        # 用于增强安全性，建议配置
+        # 获取方式: 创建机器人时选择"加签"安全设置
+        secret: your-secret
+
+        # 要发送的告警消息类型（可选，避免过度骚扰）
+        # 可选值: FAILURE（最终失败）, RETRY（执行失败但还能重试）, HEARTBEAT_TIMEOUT（心跳超时）
+        # 默认: 全部启用
+        # 示例配置:
+        # 1. 只发送最终失败告警（推荐生产环境）
+        # message-types:
+        #   - FAILURE
+        #
+        # 2. 发送失败和重试告警
+        # message-types:
+        #   - FAILURE
+        #   - RETRY
+        #
+        # 3. 发送所有类型的告警（默认）
+        message-types:
+          - FAILURE
+          - RETRY
+          - HEARTBEAT_TIMEOUT
+
+      # 飞书告警配置
+      lark:
+        # 是否启用飞书告警
+        # true: 启用, false: 禁用（默认）
+        enabled: false
+
+        # 飞书机器人 Webhook URL
+        # 格式: https://open.feishu.cn/open-apis/bot/v2/hook/xxx
+        # 获取方式: 飞书群 -> 群设置 -> 群机器人 -> 添加机器人 -> 自定义机器人
+        webhook-url: https://open.feishu.cn/open-apis/bot/v2/hook/your-token
+
+        # 飞书机器人签名密钥（可选）
+        # 用于增强安全性，建议配置
+        # 获取方式: 创建机器人时选择"签名校验"
+        secret: your-secret
+
+        # 要发送的告警消息类型（可选，避免过度骚扰）
+        # 可选值: FAILURE（最终失败）, RETRY（执行失败但还能重试）, HEARTBEAT_TIMEOUT（心跳超时）
+        # 默认: 全部启用
+        # 示例配置:
+        # 1. 只发送最终失败告警（推荐生产环境）
+        # message-types:
+        #   - FAILURE
+        #
+        # 2. 发送失败和重试告警
+        # message-types:
+        #   - FAILURE
+        #   - RETRY
+        #
+        # 3. 发送所有类型的告警（默认）
+        message-types:
+          - FAILURE
+          - RETRY
+          - HEARTBEAT_TIMEOUT
 
 # 日志配置
 logging:
